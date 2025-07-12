@@ -1,3 +1,9 @@
 <resources>
+<<<<<<< HEAD
     <string name="app_name">Stayfree</string>
+=======
+    <string name="app_name">v02</string>
+    <string name="accessibility_service_description">Automatically navigates away from Instagram Reels to help you stay focused.</string>
+
+>>>>>>> 8d58c39 (Initial commit)
 </resources>
