@@ -1,54 +1,27 @@
 package com.example.v02.timelimit.Screens
 
-import com.example.v02.timelimit.AppLimits
-import com.example.v02.timelimit.NumberPicker
 import android.content.pm.LauncherApps
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Process
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.v02.ReelsBlockingService.MainViewModel
+import com.example.v02.timelimit.NumberPicker
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -58,7 +31,8 @@ import kotlinx.coroutines.withContext
 fun SetLimitScreen(
     packageName: String,
     appName: String,
-    navController: NavController
+    navController: NavController,
+    mainViewModel: MainViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val decodedPackageName = Uri.decode(packageName)
@@ -66,12 +40,12 @@ fun SetLimitScreen(
 
     var appIcon by remember { mutableStateOf<Drawable?>(null) }
     var selectedMinutes by remember { mutableIntStateOf(30) }
-    val currentLimit = AppLimits.getLimit(decodedPackageName)
+
+    val timeLimits by mainViewModel.getAppTimeLimits().collectAsState(initial = emptyMap())
+    val currentLimit = timeLimits[decodedPackageName] ?: 0
 
     LaunchedEffect(decodedPackageName) {
-        if (currentLimit > 0) {
-            selectedMinutes = currentLimit
-        }
+        selectedMinutes = if (currentLimit > 0) currentLimit else 30
 
         withContext(Dispatchers.IO) {
             try {
@@ -84,7 +58,7 @@ fun SetLimitScreen(
                     appIcon = icon
                 }
             } catch (e: Exception) {
-                // Handle error
+                // Ignore missing icons
             }
         }
     }
@@ -144,24 +118,18 @@ fun SetLimitScreen(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
-                        if (currentLimit > 0) {
-                            Text(
-                                text = "Current limit: $currentLimit minutes",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            Text(
-                                text = "No limit set",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Text(
+                            text = if (currentLimit > 0)
+                                "Current limit: $currentLimit minutes"
+                            else "No limit set",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
 
-            // Time Picker Section
+            // Picker Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -198,10 +166,9 @@ fun SetLimitScreen(
                 }
             }
 
-            // Add some space before buttons
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Action Buttons
+            // Buttons
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -210,8 +177,7 @@ fun SetLimitScreen(
             ) {
                 Button(
                     onClick = {
-                        AppLimits.setLimit(decodedPackageName, selectedMinutes)
-                        AppLimits.saveLimits()
+                        mainViewModel.setAppTimeLimit(decodedPackageName, selectedMinutes)
                         navController.popBackStack()
                     },
                     modifier = Modifier
@@ -227,8 +193,7 @@ fun SetLimitScreen(
                 if (currentLimit > 0) {
                     OutlinedButton(
                         onClick = {
-                            AppLimits.removeLimit(decodedPackageName)
-                            AppLimits.saveLimits()
+                            mainViewModel.setAppTimeLimit(decodedPackageName, 0)
                             navController.popBackStack()
                         },
                         modifier = Modifier

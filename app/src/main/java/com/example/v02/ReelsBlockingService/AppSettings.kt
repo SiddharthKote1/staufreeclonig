@@ -9,15 +9,35 @@ data class AppSettings(
     val pinCode: String = "",
     val secretQuestion: String = "",
     val secretAnswer: String = "",
-    val accountMode: String = "Parent",
-    val activeChildId: String = "",
+    val accountMode: String = "Parent", // "Parent" or "Child"
+    val activeChildId: String = "", // ID of currently active child profile
+    val childProfiles: List<ChildProfile> = emptyList(),
+
     val instagram: App = App(),
     val facebook: App = App(),
     val youtube: YouTubeApp = YouTubeApp(),
     val twitter: TwitterApp = TwitterApp(),
     val whatsapp: WhatsAppApp = WhatsAppApp(),
     val snapchat: SnapchatApp = SnapchatApp(),
-    val childProfiles: List<ChildProfile> = emptyList()
+
+    val parentAppTimeLimits: Map<String, Int> = emptyMap() // ✅ ADDED
+)
+
+@Serializable
+data class ChildProfile(
+    val name: String,
+    val id: String = UUID.randomUUID().toString(),
+
+    val instagram: App = App(),
+    val facebook: App = App(),
+    val youtube: YouTubeApp = YouTubeApp(),
+    val twitter: TwitterApp = TwitterApp(),
+    val whatsapp: WhatsAppApp = WhatsAppApp(),
+    val snapchat: SnapchatApp = SnapchatApp(),
+
+    val appTimeLimits: Map<String, Int> = emptyMap(),
+    val bedtimeStart: String = "",
+    val bedtimeEnd: String = ""
 )
 
 @Serializable
@@ -60,18 +80,4 @@ data class SnapchatApp(
     val blockedStart: Int = 0,
     val blockedEnd: Int = 1439
 )
-
-@Serializable
-data class ChildProfile(
-    val name: String,
-    val id: String = UUID.randomUUID().toString()
-)
-
-
-
-
-
-
-
-
 

@@ -9,9 +9,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.v02.ReelsBlockingService.MainViewModel
 import com.example.v02.timelimit.Screens.AppLimitsScreen
 import com.example.v02.timelimit.Screens.AppUsageScreen
 import com.example.v02.timelimit.Screens.SetLimitScreen
@@ -21,10 +23,13 @@ fun MainScreen() {
     val navController = rememberNavController()
     var selectedTab by remember { mutableIntStateOf(0) }
 
+
     val tabs = listOf(
         TabItem("Apps", Icons.Default.Apps),
         TabItem("Limits", Icons.Default.Settings)
     )
+
+    val mainViewModel: MainViewModel = viewModel()
 
     Scaffold(
         topBar = {
@@ -60,15 +65,15 @@ fun MainScreen() {
             startDestination = "apps",
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues) // ⬅️ important to avoid being overlapped by tabs
+                .padding(paddingValues) // ⬅ important to avoid being overlapped by tabs
         ) {
             composable("apps") {
                 selectedTab = 0
-                AppUsageScreen(navController = navController)
+                AppUsageScreen(navController = navController, viewModel = viewModel())
             }
             composable("limits") {
                 selectedTab = 1
-                AppLimitsScreen()
+                AppLimitsScreen(viewModel = viewModel())
             }
             composable("set_limit/{packageName}/{appName}") { backStackEntry ->
                 val packageName = backStackEntry.arguments?.getString("packageName") ?: ""

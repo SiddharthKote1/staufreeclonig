@@ -142,7 +142,8 @@ fun InAppBlockingScreen(viewModel: MainViewModel = viewModel()) {
                     name = "Block Status",
                     description = "Prevents viewing WhatsApp Status updates to reduce social media consumption.",
                     isEnabled = isWhatsAppStatusBlockingEnabled,
-                    onToggle = { viewModel.setWhatsAppStatusBlockingEnabled(it) }
+                    onToggle = { viewModel.setWhatsAppStatusBlocked(it) }
+
                 )
             )
         ),

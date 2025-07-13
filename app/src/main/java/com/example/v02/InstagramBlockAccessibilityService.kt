@@ -1,18 +1,12 @@
 package com.example.v02
 
-import DataStoreManager
 import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import android.util.Log
 import com.example.v02.ReelsBlockingService.AppSettings
-import kotlinx.coroutines.delay
-import java.util.TimeZone
+import com.example.v02.ReelsBlockingService.DataStoreManager
+import kotlinx.coroutines.*
+import android.util.Log
 import android.graphics.Rect
 import android.content.Context
 import android.os.Build
@@ -21,9 +15,8 @@ import android.view.WindowManager
 import java.util.*
 import java.util.concurrent.LinkedBlockingQueue
 
-private const val TAG = "ReelsBlockService"
-
 class InstagramBlockAccessibilityService : AccessibilityService() {
+
     private lateinit var dataStore: DataStoreManager
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -49,10 +42,18 @@ class InstagramBlockAccessibilityService : AccessibilityService() {
         val root = rootInActiveWindow ?: return
         val nowMin = currentMinuteOfDay()
 
+        val isParent = settings.accountMode == "Parent"
+        val sourceInstagram = if (isParent) settings.instagram else getActiveChild()?.instagram
+        val sourceFacebook = if (isParent) settings.facebook else getActiveChild()?.facebook
+        val sourceYoutube = if (isParent) settings.youtube else getActiveChild()?.youtube
+        val sourceTwitter = if (isParent) settings.twitter else getActiveChild()?.twitter
+        val sourceWhatsapp = if (isParent) settings.whatsapp else getActiveChild()?.whatsapp
+        val sourceSnapchat = if (isParent) settings.snapchat else getActiveChild()?.snapchat
+
         when (pkg) {
             "com.instagram.android" -> {
-                val insta = settings.instagram
-                if (isWithinInterval(insta.blockedStart, insta.blockedEnd, nowMin)) {
+                val insta = sourceInstagram
+                if (insta != null && isWithinInterval(insta.blockedStart, insta.blockedEnd, nowMin)) {
                     if (insta.reelsBlocked) blockInstagramReels(root)
                     if (insta.storiesBlocked) blockInstagramStories(root)
                     if (insta.exploreBlocked) blockInstagramExplore(root)
@@ -60,8 +61,8 @@ class InstagramBlockAccessibilityService : AccessibilityService() {
             }
 
             "com.facebook.katana" -> {
-                val fb = settings.facebook
-                if (isWithinInterval(fb.blockedStart, fb.blockedEnd, nowMin)) {
+                val fb = sourceFacebook
+                if (fb != null && isWithinInterval(fb.blockedStart, fb.blockedEnd, nowMin)) {
                     if (fb.reelsBlocked) blockFacebookReels(root)
                     if (fb.marketplaceBlocked) blockFacebookMarketplace(root)
                     if (fb.storiesBlocked) blockFacebookStories(root)
@@ -69,8 +70,8 @@ class InstagramBlockAccessibilityService : AccessibilityService() {
             }
 
             "com.google.android.youtube" -> {
-                val yt = settings.youtube
-                if (isWithinInterval(yt.blockedStart, yt.blockedEnd, nowMin)) {
+                val yt = sourceYoutube
+                if (yt != null && isWithinInterval(yt.blockedStart, yt.blockedEnd, nowMin)) {
                     if (yt.shortsBlocked) blockYouTubeShorts(root)
                     if (yt.commentsBlocked) blockYouTubeComments(root)
                     if (yt.searchBlocked) blockYouTubeSearch(root)
@@ -78,29 +79,30 @@ class InstagramBlockAccessibilityService : AccessibilityService() {
             }
 
             "com.twitter.android" -> {
-                val twitter = settings.twitter
-                if (isWithinInterval(twitter.blockedStart, twitter.blockedEnd, nowMin)) {
+                val twitter = sourceTwitter
+                if (twitter != null && isWithinInterval(twitter.blockedStart, twitter.blockedEnd, nowMin)) {
                     if (twitter.exploreBlocked) blockTwitterExplore(root)
                 }
             }
 
             "com.whatsapp" -> {
-                val whatsapp = settings.whatsapp
-                if (isWithinInterval(whatsapp.blockedStart, whatsapp.blockedEnd, nowMin)) {
-                    if (whatsapp.statusBlocked) blockWhatsAppStatus(event, root)
+                val wa = sourceWhatsapp
+                if (wa != null && isWithinInterval(wa.blockedStart, wa.blockedEnd, nowMin)) {
+                    if (wa.statusBlocked) blockWhatsAppStatus(event, root)
                 }
             }
 
             "com.snapchat.android" -> {
-                val snapchat = settings.snapchat
-                if (isWithinInterval(snapchat.blockedStart, snapchat.blockedEnd, nowMin)) {
-                    if (snapchat.spotlightBlocked) blockSnapchatSpotlight(root)
-                    if (snapchat.storiesBlocked) blockSnapchatStories(root)
+                val snap = sourceSnapchat
+                if (snap != null && isWithinInterval(snap.blockedStart, snap.blockedEnd, nowMin)) {
+                    if (snap.spotlightBlocked) blockSnapchatSpotlight(root)
+                    if (snap.storiesBlocked) blockSnapchatStories(root)
                 }
             }
         }
     }
 
+    private fun getActiveChild() = settings.childProfiles.find { it.id == settings.activeChildId }
     // Existing Instagram methods
     private fun blockInstagramReels(root: AccessibilityNodeInfo) {
         val reelView = root.findAccessibilityNodeInfosByViewId("com.instagram.android:id/clips_swipe_refresh_container").firstOrNull()

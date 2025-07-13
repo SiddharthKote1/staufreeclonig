@@ -12,6 +12,7 @@ import android.os.Process
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -24,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,6 +50,8 @@ fun UsageStatsScreen() {
     val context = LocalContext.current
     var appUsageList by remember { mutableStateOf<List<AppUsageInfo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var searchQuery by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
 
     val requestNotificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -61,7 +65,11 @@ fun UsageStatsScreen() {
         }
     }
 
-    // Permissions + data loading
+    BackHandler(enabled = searchQuery.isNotEmpty()) {
+        focusManager.clearFocus()
+        searchQuery = ""
+    }
+
     LaunchedEffect(Unit) {
         delay(2000)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -74,16 +82,21 @@ fun UsageStatsScreen() {
             }
         }
 
-        // Request Usage Access permission
         if (!hasUsageStatsPermission(context)) {
             Toast.makeText(context, "Please grant Usage Access Permission", Toast.LENGTH_LONG).show()
             context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
             return@LaunchedEffect
         }
 
-        // Load usage data
         appUsageList = getAppUsageStats(context)
         isLoading = false
+    }
+
+    val filteredList = remember(appUsageList, searchQuery) {
+        if (searchQuery.isBlank()) appUsageList
+        else appUsageList.filter {
+            it.appName.contains(searchQuery, ignoreCase = true)
+        }
     }
 
     Column(
@@ -98,6 +111,16 @@ fun UsageStatsScreen() {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            label = { Text("Search apps") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            singleLine = true
+        )
+
         Text(
             text = "Last 24 hours",
             fontSize = 16.sp,
@@ -105,10 +128,9 @@ fun UsageStatsScreen() {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        // Summary card
-        if (!isLoading && appUsageList.isNotEmpty()) {
-            val totalTime = appUsageList.sumOf { it.usageTime }
-            val topApp = appUsageList.maxByOrNull { it.usageTime }
+        if (!isLoading && filteredList.isNotEmpty()) {
+            val totalTime = filteredList.sumOf { it.usageTime }
+            val topApp = filteredList.maxByOrNull { it.usageTime }
 
             Card(
                 modifier = Modifier
@@ -117,13 +139,9 @@ fun UsageStatsScreen() {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Total Screen Time", fontSize = 16.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     Text(
-                        text = "Total Screen Time",
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        text = formatUsageTime(totalTime),
+                        formatUsageTime(totalTime),
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -135,41 +153,29 @@ fun UsageStatsScreen() {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = "${appUsageList.size} apps used",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-
+                        Text("${filteredList.size} apps used", fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
                         topApp?.let {
-                            Text(
-                                text = "Top: ${it.appName}",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                            Text("Top: ${it.appName}", fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                     }
                 }
             }
         }
 
-        // Loading or app list
         if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(appUsageList, key = { it.packageName }) { appUsage ->
+                items(filteredList, key = { it.packageName }) { appUsage ->
                     AppUsageCard(appUsage = appUsage)
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun AppUsageCard(appUsage: AppUsageInfo) {
