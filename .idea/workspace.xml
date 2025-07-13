@@ -10,27 +10,16 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="435ee82f-d3ae-4473-9de2-d76c0220b168" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/app/src/main/java/com/example/v02/MainScreen.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.0-milestone-1/executionHistory/executionHistory.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.0-milestone-1/executionHistory/executionHistory.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.0-milestone-1/executionHistory/executionHistory.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.0-milestone-1/executionHistory/executionHistory.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.0-milestone-1/fileHashes/fileHashes.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.0-milestone-1/fileHashes/fileHashes.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.0-milestone-1/fileHashes/fileHashes.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.0-milestone-1/fileHashes/fileHashes.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.0-milestone-1/fileHashes/resourceHashesCache.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.0-milestone-1/fileHashes/resourceHashesCache.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/file-system.probe" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/file-system.probe" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/v02/AppLimitApp.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/v02/AppLimitApp.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/v02/InstagramBlockAccessibilityService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/v02/InstagramBlockAccessibilityService.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/v02/ReelsBlockingService/AppSettings.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/v02/ReelsBlockingService/AppSettings.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/v02/ReelsBlockingService/DataStoreManager.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/v02/ReelsBlockingService/DataStoreManager.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/v02/ReelsBlockingService/MainViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/v02/ReelsBlockingService/MainViewModel.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/v02/screens/InAppBlockingScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/v02/screens/InAppBlockingScreen.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/v02/screens/MainAppScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/v02/screens/MainAppScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/v02/screens/UsageStatsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/v02/screens/UsageStatsScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/v02/timelimit/Screens/AppLimitsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/v02/timelimit/Screens/AppLimitsScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/v02/timelimit/Screens/SetLimitScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/v02/timelimit/Screens/SetLimitScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/v02/timelimit/Screens/Timelimitmain.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/passwordScreens/AccountSwitchDialog.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/passwordScreens/AccountSwitchDialog.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/java_pid1352.hprof" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/java_pid21408.hprof" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -104,7 +93,7 @@
     "RunOnceActivity.readMode.enableVisualFormatting": "true",
     "cf.first.check.clang-format": "false",
     "cidr.known.project.marker": "true",
-    "git-widget-placeholder": "master",
+    "git-widget-placeholder": "profilesetup",
     "last_directory_selection": "C:/Users/siddh/AndroidStudioProjects/Stayfree-FinalIntegration/app/src/main/java",
     "last_opened_file_path": "C:/Users/siddh/AndroidStudioProjects/Stayfree-FinalIntegration",
     "project.structure.last.edited": "Dependencies",

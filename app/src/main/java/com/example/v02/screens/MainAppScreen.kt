@@ -61,8 +61,6 @@ fun MainAppScreen(viewModel: MainViewModel) {
     var enteredPin by remember { mutableStateOf("") }
     val isUnlocked = remember { mutableStateOf(isParent) }
 
-
-
     LaunchedEffect(accountMode) {
         isUnlocked.value = isParent
     }
@@ -161,7 +159,7 @@ fun MainAppScreen(viewModel: MainViewModel) {
         ) { innerPadding ->
             NavHost(
                 navController = navController,
-                startDestination = BottomNavItem.UsageStats.route,
+                startDestination = if (setupCompleted.value) BottomNavItem.UsageStats.route else "started_screen",
                 modifier = Modifier.padding(innerPadding)
             ) {
                 composable("started_screen") { StartedScreen(navController) }
@@ -169,38 +167,31 @@ fun MainAppScreen(viewModel: MainViewModel) {
                 composable("usage_permission") {
                     UsagePermission(navController) {
                         prefs.edit().putBoolean("setup_completed", true).apply()
+                        setupCompleted.value = true
+                        navController.navigate(BottomNavItem.UsageStats.route) {
+                            popUpTo("started_screen") { inclusive = true }
+                            launchSingleTop = true
+                        }
                     }
                 }
-
                 composable(BottomNavItem.UsageStats.route) { UsageStatsScreen() }
-
-                composable(BottomNavItem.InAppBlocking.route) {
-                    InAppBlockingScreen(viewModel)
-                }
-
-                // ✅ ADD THIS TO FIX THE ISSUE
-                composable(BottomNavItem.TimeLimits.route) {
-                    MainScreen()
-                }
-
+                composable(BottomNavItem.InAppBlocking.route) { InAppBlockingScreen(viewModel) }
+                composable(BottomNavItem.TimeLimits.route) { MainScreen() }
                 composable("change_pin") {
                     ChangePinScreen(viewModel, requireCurrent = true) {
                         navController.popBackStack()
                     }
                 }
-
                 composable("change_pin_no_current") {
                     ChangePinScreen(viewModel, requireCurrent = false) {
                         navController.popBackStack()
                     }
                 }
-
                 composable("reset_pin") {
                     ChangePinScreen(viewModel, requireCurrent = false) {
                         navController.popBackStack()
                     }
                 }
-
                 composable("set_qa") {
                     SetRecoveryQAScreen(viewModel) {
                         navController.popBackStack()
