@@ -1,7 +1,6 @@
 package com.example.v02.screens
 
 import AccountSwitcherDialog
-import ManageChildProfileDialog
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
@@ -18,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
-import com.example.v02.AppLimitApp
+import com.example.v02.MainScreen
 import com.example.v02.ReelsBlockingService.ChildProfile
 import com.example.v02.ReelsBlockingService.MainViewModel
 import com.example.v02.navigation.BottomNavItem
@@ -44,9 +43,6 @@ fun MainAppScreen(viewModel: MainViewModel) {
 
     val expandMenu = remember { mutableStateOf(false) }
     val showSwitchDialog = remember { mutableStateOf(false) }
-    val showManageDialog = remember { mutableStateOf(false) }
-
-    var editingProfile by remember { mutableStateOf<ChildProfile?>(null) }
 
     val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
     val setupCompleted = remember { mutableStateOf(prefs.getBoolean("setup_completed", false)) }
@@ -59,6 +55,17 @@ fun MainAppScreen(viewModel: MainViewModel) {
     val childProfiles by viewModel.childProfiles.collectAsState(initial = emptyList())
     val activeChildId by viewModel.activeChildId.collectAsState(initial = "")
     val activeChildProfile = childProfiles.find { it.id == activeChildId }
+
+    val showPinDialog = remember { mutableStateOf(false) }
+    val pendingTabRoute = remember { mutableStateOf<String?>(null) }
+    var enteredPin by remember { mutableStateOf("") }
+    val isUnlocked = remember { mutableStateOf(isParent) }
+
+
+
+    LaunchedEffect(accountMode) {
+        isUnlocked.value = isParent
+    }
 
     LaunchedEffect(currentRoute) {
         showBottomBar.value = currentRoute !in fullScreenRoutes
@@ -81,10 +88,10 @@ fun MainAppScreen(viewModel: MainViewModel) {
                             ) {
                                 DropdownMenuItem(
                                     text = { Text("Settings") },
-                                    enabled = isParent,
+                                    enabled = isUnlocked.value,
                                     onClick = {
                                         expandMenu.value = false
-                                        if (isParent) {
+                                        if (isUnlocked.value) {
                                             context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                                         }
                                     }
@@ -96,7 +103,7 @@ fun MainAppScreen(viewModel: MainViewModel) {
                                         showSwitchDialog.value = true
                                     }
                                 )
-                                if (isParent) {
+                                if (isUnlocked.value) {
                                     DropdownMenuItem(
                                         text = { Text(if (hasPin) "Change PIN" else "Set PIN") },
                                         onClick = {
@@ -130,9 +137,8 @@ fun MainAppScreen(viewModel: MainViewModel) {
                         ).forEach { tab ->
                             NavigationBarItem(
                                 selected = curDest?.hierarchy?.any { it.route == tab.route } == true,
-                                enabled = isParent || tab == BottomNavItem.UsageStats,
                                 onClick = {
-                                    if (isParent || tab == BottomNavItem.UsageStats) {
+                                    if (isUnlocked.value || tab == BottomNavItem.UsageStats) {
                                         navController.navigate(tab.route) {
                                             popUpTo(navController.graph.findStartDestination().id) {
                                                 saveState = true
@@ -141,7 +147,8 @@ fun MainAppScreen(viewModel: MainViewModel) {
                                             restoreState = true
                                         }
                                     } else {
-                                        Toast.makeText(context, "Only Parent can access this feature", Toast.LENGTH_SHORT).show()
+                                        pendingTabRoute.value = tab.route
+                                        showPinDialog.value = true
                                     }
                                 },
                                 icon = { Icon(tab.icon, contentDescription = null) },
@@ -155,7 +162,6 @@ fun MainAppScreen(viewModel: MainViewModel) {
             NavHost(
                 navController = navController,
                 startDestination = BottomNavItem.UsageStats.route,
-                    //if (setupCompleted.value) BottomNavItem.UsageStats.route else "started_screen",
                 modifier = Modifier.padding(innerPadding)
             ) {
                 composable("started_screen") { StartedScreen(navController) }
@@ -165,28 +171,36 @@ fun MainAppScreen(viewModel: MainViewModel) {
                         prefs.edit().putBoolean("setup_completed", true).apply()
                     }
                 }
+
                 composable(BottomNavItem.UsageStats.route) { UsageStatsScreen() }
+
                 composable(BottomNavItem.InAppBlocking.route) {
-                    if (isParent) InAppBlockingScreen(viewModel) else RestrictedScreen()
+                    InAppBlockingScreen(viewModel)
                 }
+
+                // ✅ ADD THIS TO FIX THE ISSUE
                 composable(BottomNavItem.TimeLimits.route) {
-                    if (isParent) AppLimitApp() else RestrictedScreen()
+                    MainScreen()
                 }
+
                 composable("change_pin") {
                     ChangePinScreen(viewModel, requireCurrent = true) {
                         navController.popBackStack()
                     }
                 }
+
                 composable("change_pin_no_current") {
                     ChangePinScreen(viewModel, requireCurrent = false) {
                         navController.popBackStack()
                     }
                 }
+
                 composable("reset_pin") {
                     ChangePinScreen(viewModel, requireCurrent = false) {
                         navController.popBackStack()
                     }
                 }
+
                 composable("set_qa") {
                     SetRecoveryQAScreen(viewModel) {
                         navController.popBackStack()
@@ -195,7 +209,6 @@ fun MainAppScreen(viewModel: MainViewModel) {
             }
         }
 
-        // Account switcher UI
         if (showSwitchDialog.value) {
             AccountSwitcherDialog(
                 currentMode = accountMode,
@@ -216,7 +229,10 @@ fun MainAppScreen(viewModel: MainViewModel) {
                     enteredPin == stored
                 },
                 onSwitchToParent = {
-                    scope.launch { viewModel.setAccountMode("Parent") }
+                    scope.launch {
+                        viewModel.setAccountMode("Parent")
+                        isUnlocked.value = true
+                    }
                 },
                 onSwitchToChild = { profile ->
                     scope.launch {
@@ -224,6 +240,7 @@ fun MainAppScreen(viewModel: MainViewModel) {
                         if (hasPin) {
                             viewModel.setActiveChild(profile.id)
                             viewModel.setAccountMode("Child")
+                            isUnlocked.value = false
                         } else {
                             Toast.makeText(context, "Set a Parent PIN before switching to Child mode", Toast.LENGTH_LONG).show()
                             navController.navigate("change_pin_no_current")
@@ -235,40 +252,55 @@ fun MainAppScreen(viewModel: MainViewModel) {
             )
         }
 
-        // Child editor dialog
-        if (showManageDialog.value) {
-            ManageChildProfileDialog(
-                initialName = editingProfile?.name.orEmpty(),
-                onConfirm = { name ->
-                    scope.launch {
-                        val updated = editingProfile?.copy(name = name)
-                            ?: ChildProfile(id = UUID.randomUUID().toString(), name = name)
-                        viewModel.addOrUpdateChild(updated)
-                        if (editingProfile == null) {
-                            viewModel.setActiveChild(updated.id)
-                            viewModel.setAccountMode("Child")
-                        }
-                        showManageDialog.value = false
-                    }
+        if (showPinDialog.value) {
+            AlertDialog(
+                onDismissRequest = {
+                    showPinDialog.value = false
+                    enteredPin = ""
                 },
-                onDelete = editingProfile?.let {
-                    {
+                confirmButton = {
+                    TextButton(onClick = {
                         scope.launch {
-                            viewModel.deleteChild(it.id)
-                            viewModel.setAccountMode("Parent")
+                            val stored = viewModel.pinCode.first()
+                            if (enteredPin == stored) {
+                                isUnlocked.value = true
+                                showPinDialog.value = false
+                                enteredPin = ""
+                                pendingTabRoute.value?.let {
+                                    navController.navigate(it) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            } else {
+                                Toast.makeText(context, "Incorrect PIN", Toast.LENGTH_SHORT).show()
+                            }
                         }
-                        showManageDialog.value = false
+                    }) {
+                        Text("Unlock")
                     }
                 },
-                onDismiss = { showManageDialog.value = false }
+                dismissButton = {
+                    TextButton(onClick = {
+                        showPinDialog.value = false
+                        enteredPin = ""
+                    }) {
+                        Text("Cancel")
+                    }
+                },
+                title = { Text("Parent PIN Required") },
+                text = {
+                    OutlinedTextField(
+                        value = enteredPin,
+                        onValueChange = { enteredPin = it },
+                        label = { Text("Enter Parent PIN") },
+                        singleLine = true
+                    )
+                }
             )
         }
-    }
-}
-
-@Composable
-fun RestrictedScreen() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("This feature is unavailable in Child mode.")
     }
 }

@@ -1,132 +1,178 @@
-import com.example.v02.ReelsBlockingService.AppSettings
-import com.example.v02.ReelsBlockingService.ChildProfile
-import com.example.v02.ReelsBlockingService.DataStoreProvider
+package com.example.v02.ReelsBlockingService
+
 import android.content.Context
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import androidx.datastore.core.DataStore
+import androidx.datastore.dataStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.withContext
 
-class DataStoreManager(context: Context) {
+val Context.appSettingsDataStore: DataStore<AppSettings> by dataStore(
+    fileName = "app_settings.json",
+    serializer = AppSettingsSerializer
+)
 
-    private val dataStore = DataStoreProvider.getInstance(context)
+class DataStoreManager(private val context: Context) {
 
-    /* ───────── Child Profiles ───────── */
+    private val dataStore: DataStore<AppSettings> = context.appSettingsDataStore
 
-    val childProfiles: Flow<List<ChildProfile>> = dataStore.data.map { it.childProfiles }
-    val activeChildId: Flow<String> = dataStore.data.map { it.activeChildId }
+    val appSettings: StateFlow<AppSettings> = dataStore.data
+        .catch { emit(AppSettings()) }
+        .stateIn(
+            scope = kotlinx.coroutines.GlobalScope,
+            started = SharingStarted.Eagerly,
+            initialValue = AppSettings()
+        )
 
-    suspend fun addOrUpdateChildProfile(profile: ChildProfile) {
-        dataStore.updateData { current ->
-            val updated = current.childProfiles.toMutableList()
-            val index = updated.indexOfFirst { it.id == profile.id }
-            if (index >= 0) updated[index] = profile else updated.add(profile)
-            current.copy(childProfiles = updated)
-        }
+    fun getCurrentAppSettings(): AppSettings {
+        return appSettings.value
     }
 
-    suspend fun deleteChildProfile(id: String) {
-        dataStore.updateData { current ->
-            val updated = current.childProfiles.filterNot { it.id == id }
-            val newActiveId = if (current.activeChildId == id) "" else current.activeChildId
-            current.copy(childProfiles = updated, activeChildId = newActiveId)
+    val activeChildId: StateFlow<String> = appSettings.map { it.activeChildId }
+        .stateIn(kotlinx.coroutines.GlobalScope, SharingStarted.Eagerly, "")
+
+    val accountMode: StateFlow<String> = appSettings.map { it.accountMode }
+        .stateIn(kotlinx.coroutines.GlobalScope, SharingStarted.Eagerly, "Parent")
+
+    val pinCode: StateFlow<String> = appSettings.map { it.pinCode }
+        .stateIn(kotlinx.coroutines.GlobalScope, SharingStarted.Eagerly, "")
+
+    val secretQuestion: StateFlow<String> = appSettings.map { it.secretQuestion }
+        .stateIn(kotlinx.coroutines.GlobalScope, SharingStarted.Eagerly, "")
+
+    val secretAnswer: StateFlow<String> = appSettings.map { it.secretAnswer }
+        .stateIn(kotlinx.coroutines.GlobalScope, SharingStarted.Eagerly, "")
+
+    val childProfiles: StateFlow<List<ChildProfile>> = appSettings.map { it.childProfiles }
+        .stateIn(kotlinx.coroutines.GlobalScope, SharingStarted.Eagerly, emptyList())
+
+    private suspend fun saveSettings(settings: AppSettings) {
+        withContext(Dispatchers.IO) {
+            dataStore.updateData { settings }
         }
     }
 
     suspend fun setActiveChildProfile(id: String) {
-        dataStore.updateData { it.copy(activeChildId = id) }
+        saveSettings(appSettings.value.copy(activeChildId = id))
     }
-
-    /* ───────── Global flows ───────── */
-
-    val appSettings: Flow<AppSettings> = dataStore.data
-    val accountMode: Flow<String> = dataStore.data.map { it.accountMode }
-    val pinCode: Flow<String> = dataStore.data.map { it.pinCode }
-    val secretQuestion: Flow<String> = dataStore.data.map { it.secretQuestion }
-    val secretAnswer: Flow<String> = dataStore.data.map { it.secretAnswer }
-
-    /* ───────── Global setters ───────── */
 
     suspend fun setAccountMode(mode: String) {
-        dataStore.updateData { cur -> cur.copy(accountMode = mode) }
+        saveSettings(appSettings.value.copy(accountMode = mode))
     }
 
-    suspend fun setPinCode(newPin: String) {
-        dataStore.updateData { cur -> cur.copy(pinCode = newPin) }
+    suspend fun setPinCode(pin: String) {
+        saveSettings(appSettings.value.copy(pinCode = pin))
     }
 
     suspend fun setSecretQA(question: String, answer: String) {
-        dataStore.updateData { current ->
-            current.copy(secretQuestion = question, secretAnswer = answer)
-        }
+        saveSettings(appSettings.value.copy(secretQuestion = question, secretAnswer = answer))
     }
 
-    /* ───────── Instagram ───────── */
+    suspend fun addOrUpdateChildProfile(profile: ChildProfile) {
+        val settings = appSettings.value
+        val updatedChildren = settings.childProfiles.filter { it.id != profile.id } + profile
+        saveSettings(settings.copy(childProfiles = updatedChildren))
+    }
 
-    suspend fun setInstagramReelsBlocking(enabled: Boolean) =
-        dataStore.updateData { it.copy(instagram = it.instagram.copy(reelsBlocked = enabled)) }
+    suspend fun deleteChildProfile(id: String) {
+        val settings = appSettings.value
+        val updatedChildren = settings.childProfiles.filterNot { it.id == id }
+        val newActiveId = if (settings.activeChildId == id) "" else settings.activeChildId
+        saveSettings(settings.copy(childProfiles = updatedChildren, activeChildId = newActiveId))
+    }
 
-    suspend fun setInstagramStoriesBlocking(enabled: Boolean) =
-        dataStore.updateData { it.copy(instagram = it.instagram.copy(storiesBlocked = enabled)) }
+    private suspend fun updateActiveChild(block: (ChildProfile) -> ChildProfile) {
+        val settings = appSettings.value
+        val activeId = settings.activeChildId
+        if (activeId.isBlank()) return
 
-    suspend fun setInstagramExploreBlocking(enabled: Boolean) =
-        dataStore.updateData { it.copy(instagram = it.instagram.copy(exploreBlocked = enabled)) }
-
-    suspend fun setInstagramBlockTime(start: Int, end: Int) =
-        dataStore.updateData {
-            it.copy(instagram = it.instagram.copy(blockedStart = start, blockedEnd = end))
+        val updatedChildren = settings.childProfiles.map {
+            if (it.id == activeId) block(it) else it
         }
+        saveSettings(settings.copy(childProfiles = updatedChildren))
+    }
 
-    /* ───────── Facebook ───────── */
+    private suspend fun updateParentApp(block: (AppSettings) -> AppSettings) {
+        val settings = appSettings.value
+        saveSettings(block(settings))
+    }
 
-    suspend fun setFacebookReelsBlocking(enabled: Boolean) =
-        dataStore.updateData { it.copy(facebook = it.facebook.copy(reelsBlocked = enabled)) }
+    // Instagram
+    suspend fun setInstagramReelsBlocked(enabled: Boolean) =
+        if (appSettings.value.accountMode == "Parent") updateParentApp { it.copy(instagram = it.instagram.copy(reelsBlocked = enabled)) }
+        else updateActiveChild { it.copy(instagram = it.instagram.copy(reelsBlocked = enabled)) }
 
-    suspend fun setFacebookMarketplaceBlocking(enabled: Boolean) =
-        dataStore.updateData { it.copy(facebook = it.facebook.copy(marketplaceBlocked = enabled)) }
+    suspend fun setInstagramStoriesBlocked(enabled: Boolean) =
+        if (appSettings.value.accountMode == "Parent") updateParentApp { it.copy(instagram = it.instagram.copy(storiesBlocked = enabled)) }
+        else updateActiveChild { it.copy(instagram = it.instagram.copy(storiesBlocked = enabled)) }
 
-    suspend fun setFacebookStoriesBlocking(enabled: Boolean) =
-        dataStore.updateData { it.copy(facebook = it.facebook.copy(storiesBlocked = enabled)) }
+    suspend fun setInstagramExploreBlocked(enabled: Boolean) =
+        if (appSettings.value.accountMode == "Parent") updateParentApp { it.copy(instagram = it.instagram.copy(exploreBlocked = enabled)) }
+        else updateActiveChild { it.copy(instagram = it.instagram.copy(exploreBlocked = enabled)) }
 
-    /* ───────── YouTube ───────── */
+    // Facebook
+    suspend fun setFacebookReelsBlocked(enabled: Boolean) =
+        if (appSettings.value.accountMode == "Parent") updateParentApp { it.copy(facebook = it.facebook.copy(reelsBlocked = enabled)) }
+        else updateActiveChild { it.copy(facebook = it.facebook.copy(reelsBlocked = enabled)) }
 
-    suspend fun setYouTubeShortsBlocking(enabled: Boolean) =
-        dataStore.updateData { it.copy(youtube = it.youtube.copy(shortsBlocked = enabled)) }
+    suspend fun setFacebookMarketplaceBlocked(enabled: Boolean) =
+        if (appSettings.value.accountMode == "Parent") updateParentApp { it.copy(facebook = it.facebook.copy(marketplaceBlocked = enabled)) }
+        else updateActiveChild { it.copy(facebook = it.facebook.copy(marketplaceBlocked = enabled)) }
 
-    suspend fun setYouTubeCommentsBlocking(enabled: Boolean) =
-        dataStore.updateData { it.copy(youtube = it.youtube.copy(commentsBlocked = enabled)) }
+    suspend fun setFacebookStoriesBlocked(enabled: Boolean) =
+        if (appSettings.value.accountMode == "Parent") updateParentApp { it.copy(facebook = it.facebook.copy(storiesBlocked = enabled)) }
+        else updateActiveChild { it.copy(facebook = it.facebook.copy(storiesBlocked = enabled)) }
 
-    suspend fun setYouTubeSearchBlocking(enabled: Boolean) =
-        dataStore.updateData { it.copy(youtube = it.youtube.copy(searchBlocked = enabled)) }
+    // YouTube
+    suspend fun setYouTubeShortsBlocked(enabled: Boolean) =
+        if (appSettings.value.accountMode == "Parent") updateParentApp { it.copy(youtube = it.youtube.copy(shortsBlocked = enabled)) }
+        else updateActiveChild { it.copy(youtube = it.youtube.copy(shortsBlocked = enabled)) }
 
-    suspend fun setYouTubeBlockTime(start: Int, end: Int) =
-        dataStore.updateData {
-            it.copy(youtube = it.youtube.copy(blockedStart = start, blockedEnd = end))
+    suspend fun setYouTubeCommentsBlocked(enabled: Boolean) =
+        if (appSettings.value.accountMode == "Parent") updateParentApp { it.copy(youtube = it.youtube.copy(commentsBlocked = enabled)) }
+        else updateActiveChild { it.copy(youtube = it.youtube.copy(commentsBlocked = enabled)) }
+
+    suspend fun setYouTubeSearchBlocked(enabled: Boolean) =
+        if (appSettings.value.accountMode == "Parent") updateParentApp { it.copy(youtube = it.youtube.copy(searchBlocked = enabled)) }
+        else updateActiveChild { it.copy(youtube = it.youtube.copy(searchBlocked = enabled)) }
+
+    // Twitter
+    suspend fun setTwitterExploreBlocked(enabled: Boolean) =
+        if (appSettings.value.accountMode == "Parent") updateParentApp { it.copy(twitter = it.twitter.copy(exploreBlocked = enabled)) }
+        else updateActiveChild { it.copy(twitter = it.twitter.copy(exploreBlocked = enabled)) }
+
+    // WhatsApp
+    suspend fun setWhatsAppStatusBlocked(enabled: Boolean) =
+        if (appSettings.value.accountMode == "Parent") updateParentApp { it.copy(whatsapp = it.whatsapp.copy(statusBlocked = enabled)) }
+        else updateActiveChild { it.copy(whatsapp = it.whatsapp.copy(statusBlocked = enabled)) }
+
+    // Snapchat
+    suspend fun setSnapchatSpotlightBlocked(enabled: Boolean) =
+        if (appSettings.value.accountMode == "Parent") updateParentApp { it.copy(snapchat = it.snapchat.copy(spotlightBlocked = enabled)) }
+        else updateActiveChild { it.copy(snapchat = it.snapchat.copy(spotlightBlocked = enabled)) }
+
+    suspend fun setSnapchatStoriesBlocked(enabled: Boolean) =
+        if (appSettings.value.accountMode == "Parent") updateParentApp { it.copy(snapchat = it.snapchat.copy(storiesBlocked = enabled)) }
+        else updateActiveChild { it.copy(snapchat = it.snapchat.copy(storiesBlocked = enabled)) }
+
+    // App Time Limits
+    suspend fun setAppTimeLimit(packageName: String, minutes: Int) {
+        if (appSettings.value.accountMode == "Parent") {
+            // Update parent time limits
+            val settings = appSettings.value
+            val updatedLimits = settings.parentAppTimeLimits.toMutableMap().apply {
+                this[packageName] = minutes
+            }
+            saveSettings(settings.copy(parentAppTimeLimits = updatedLimits))
+        } else {
+            // Update child time limits
+            updateActiveChild {
+                val updatedLimits = it.appTimeLimits.toMutableMap().apply {
+                    this[packageName] = minutes
+                }
+                it.copy(appTimeLimits = updatedLimits)
+            }
         }
-
-    /* ───────── Twitter ───────── */
-
-    suspend fun setTwitterExploreBlocking(enabled: Boolean) =
-        dataStore.updateData { it.copy(twitter = it.twitter.copy(exploreBlocked = enabled)) }
-
-    suspend fun setTwitterBlockTime(start: Int, end: Int) =
-        dataStore.updateData {
-            it.copy(twitter = it.twitter.copy(blockedStart = start, blockedEnd = end))
-        }
-
-    /* ───────── WhatsApp ───────── */
-
-    suspend fun setWhatsAppStatusBlocking(enabled: Boolean) =
-        dataStore.updateData { it.copy(whatsapp = it.whatsapp.copy(statusBlocked = enabled)) }
-
-    suspend fun setWhatsAppBlockTime(start: Int, end: Int) =
-        dataStore.updateData {
-            it.copy(whatsapp = it.whatsapp.copy(blockedStart = start, blockedEnd = end))
-        }
-
-    /* ───────── Snapchat ───────── */
-
-    suspend fun setSnapchatSpotlightBlocking(enabled: Boolean) =
-        dataStore.updateData { it.copy(snapchat = it.snapchat.copy(spotlightBlocked = enabled)) }
-
-    suspend fun setSnapchatStoriesBlocking(enabled: Boolean) =
-        dataStore.updateData { it.copy(snapchat = it.snapchat.copy(storiesBlocked = enabled)) }
+    }
 }
+

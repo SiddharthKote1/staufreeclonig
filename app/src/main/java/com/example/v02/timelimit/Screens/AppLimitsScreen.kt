@@ -21,20 +21,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.v02.ReelsBlockingService.MainViewModel
 import com.example.v02.timelimit.AppLimits
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 @Composable
-fun AppLimitsScreen() {
+fun AppLimitsScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val appTimeLimits by viewModel.getAppTimeLimits().collectAsState(initial = emptyMap())
+
     var limitedApps by remember { mutableStateOf<List<LimitedAppItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        limitedApps = loadLimitedApps(context)
+    LaunchedEffect(appTimeLimits) {
+        limitedApps = loadLimitedAppsFromLimits(context, appTimeLimits)
         isLoading = false
     }
 
@@ -101,10 +104,8 @@ fun AppLimitsScreen() {
                     LimitedAppItem(
                         limitedApp = limitedApp,
                         onRemoveLimit = {
-                            AppLimits.removeLimit(limitedApp.packageName)
-                            AppLimits.saveLimits()
                             scope.launch {
-                                limitedApps = loadLimitedApps(context)
+                                viewModel.setAppTimeLimit(limitedApp.packageName, 0) // 👈 removes the limit
                             }
                         }
                     )
@@ -239,34 +240,29 @@ data class LimitedAppItem(
     val limitMinutes: Int
 )
 
-private suspend fun loadLimitedApps(context: Context): List<LimitedAppItem> =
-    withContext(Dispatchers.IO) {
+private suspend fun loadLimitedAppsFromLimits(
+    context: Context,
+    limits: Map<String, Int>
+): List<LimitedAppItem> = withContext(Dispatchers.IO) {
+    val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+    val packageManager = context.packageManager
+
+    limits.mapNotNull { (packageName, limitMinutes) ->
         try {
-            val launcherApps =
-                context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
-            val packageManager = context.packageManager
+            val applicationInfo = launcherApps.getApplicationInfo(
+                packageName, 0, Process.myUserHandle()
+            )
+            val appName = packageManager.getApplicationLabel(applicationInfo).toString()
+            val icon = packageManager.getApplicationIcon(applicationInfo)
 
-            val limits = AppLimits.getAllLimits()
-
-            limits.mapNotNull { (packageName, limitMinutes) ->
-                try {
-                    val applicationInfo = launcherApps.getApplicationInfo(
-                        packageName, 0, Process.myUserHandle()
-                    )
-                    val appName = packageManager.getApplicationLabel(applicationInfo).toString()
-                    val icon = packageManager.getApplicationIcon(applicationInfo)
-
-                    LimitedAppItem(
-                        packageName = packageName,
-                        appName = appName,
-                        icon = icon,
-                        limitMinutes = limitMinutes
-                    )
-                } catch (e: Exception) {
-                    null
-                }
-            }.sortedBy { it.appName }
+            LimitedAppItem(
+                packageName = packageName,
+                appName = appName,
+                icon = icon,
+                limitMinutes = limitMinutes
+            )
         } catch (e: Exception) {
-            emptyList()
+            null
         }
-    }
+    }.sortedBy { it.appName }
+}

@@ -26,7 +26,7 @@ fun AccountSwitcherDialog(
     childProfiles: List<ChildProfile>,
     onAddOrUpdateChild: (ChildProfile) -> Unit,
     onDeleteChild: (String) -> Unit,
-    verifyParentPin: suspend (String) -> Boolean, // ✅ ADDED: Pass a lambda to verify PIN
+    verifyParentPin: suspend (String) -> Boolean,
     onSwitchToParent: () -> Unit,
     onSwitchToChild: (ChildProfile) -> Unit,
     onDismiss: () -> Unit
@@ -35,9 +35,9 @@ fun AccountSwitcherDialog(
     var editorName by remember { mutableStateOf(TextFieldValue("")) }
     var editingProfile by remember { mutableStateOf<ChildProfile?>(null) }
 
-    val showPinPrompt = remember { mutableStateOf(false) }
-    val pinError = remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
+    var pinInput by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf<String?>(null) }
 
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -53,6 +53,7 @@ fun AccountSwitcherDialog(
                 .padding(16.dp)
                 .fillMaxWidth()
         ) {
+            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -64,6 +65,7 @@ fun AccountSwitcherDialog(
 
             Spacer(Modifier.height(12.dp))
 
+            // Current user preview
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
@@ -73,53 +75,68 @@ fun AccountSwitcherDialog(
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    text = currentProfile?.name ?: "Parent Mode",
+                    text = if (currentMode == "Parent") "Parent Mode" else currentProfile?.name.orEmpty(),
                     style = MaterialTheme.typography.titleMedium
                 )
             }
 
             Spacer(Modifier.height(24.dp))
 
+            // Account list (only show in Parent Mode)
             if (currentMode == "Parent") {
-                Text("Child Accounts:", style = MaterialTheme.typography.titleSmall)
+                Text("Accounts:", style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(8.dp))
 
                 childProfiles.forEach { profile ->
-                    Row(
+                    val isActive = profile.id == currentProfile?.id
+
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
                                 onSwitchToChild(profile)
                                 onDismiss()
                             }
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(vertical = 6.dp)
+                            .background(
+                                if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                else Color.Transparent
+                            )
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Color.LightGray)
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(profile.name, modifier = Modifier.weight(1f))
-                        IconButton(onClick = {
-                            editorName = TextFieldValue(profile.name)
-                            editingProfile = profile
-                            showEditor = true
-                        }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.LightGray)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(profile.name, modifier = Modifier.weight(1f))
+                            IconButton(onClick = {
+                                editorName = TextFieldValue(profile.name)
+                                editingProfile = profile
+                                showEditor = true
+                            }) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit")
+                            }
+                            IconButton(onClick = {
+                                onDeleteChild(profile.id)
+                            }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete")
+                            }
                         }
-                        IconButton(onClick = {
-                            onDeleteChild(profile.id)
-                        }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete")
-                        }
+                        Spacer(Modifier.height(4.dp))
                     }
+
+                    Spacer(Modifier.height(8.dp))
                 }
 
                 Spacer(Modifier.height(16.dp))
 
+                // Add Account Button
                 Button(
                     onClick = {
                         editorName = TextFieldValue("")
@@ -137,19 +154,52 @@ fun AccountSwitcherDialog(
                     Text("Add Account")
                 }
             } else {
+                // Child Mode: Switch to Parent Mode
+                Text("Tap below to switch to Parent Mode", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = pinInput,
+                    onValueChange = {
+                        pinInput = it
+                        pinError = null
+                    },
+                    label = { Text("Enter Parent PIN") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                pinError?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Text(it, color = MaterialTheme.colorScheme.error)
+                }
+
                 Spacer(Modifier.height(16.dp))
+
                 Button(
-                    onClick = { showPinPrompt.value = true },
+                    onClick = {
+                        coroutineScope.launch {
+                            val isCorrect = verifyParentPin(pinInput)
+                            if (isCorrect) {
+                                onSwitchToParent()
+                                onDismiss()
+                            } else {
+                                pinError = "Incorrect PIN"
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF6200EE),
                         contentColor = Color.White
-                    ),
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
                 ) {
-                    Text("Switch to Parent")
+                    Text("Switch to Parent Account")
                 }
             }
 
+            // Add / Edit profile inline UI
             if (showEditor) {
                 Spacer(Modifier.height(24.dp))
                 OutlinedTextField(
@@ -178,115 +228,5 @@ fun AccountSwitcherDialog(
             }
         }
     }
-
-    // 🔐 PIN PROMPT
-    if (showPinPrompt.value) {
-        PinPromptDialog(
-            onConfirm = { enteredPin ->
-                coroutineScope.launch {
-                    val isCorrect = verifyParentPin(enteredPin)
-                    if (isCorrect) {
-                        onSwitchToParent()
-                        showPinPrompt.value = false
-                        pinError.value = null
-                        onDismiss()
-                    } else {
-                        pinError.value = "Incorrect PIN"
-                    }
-                }
-            },
-            onDismiss = {
-                showPinPrompt.value = false
-                pinError.value = null
-            },
-            errorMessage = pinError.value
-        )
-    }
 }
 
-
-@Composable
-fun ManageChildProfileDialog(
-    initialName: String = "",
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onDelete: (() -> Unit)? = null
-) {
-    var name by remember { mutableStateOf(initialName) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (initialName.isEmpty()) "Add Child" else "Edit Child") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Name") },
-                    singleLine = true
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (name.isNotBlank()) onConfirm(name.trim())
-                }
-            ) { Text("Save") }
-        },
-        dismissButton = {
-            Row {
-                if (onDelete != null) {
-                    TextButton(onClick = {
-                        onDelete()
-                        onDismiss()
-                    }) {
-                        Text("Delete", color = MaterialTheme.colorScheme.error)
-                    }
-                    Spacer(Modifier.width(8.dp))
-                }
-                TextButton(onClick = onDismiss) {
-                    Text("Cancel")
-                }
-            }
-        }
-    )
-}
-
-@Composable
-fun PinPromptDialog(
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
-    errorMessage: String?
-) {
-    var pin by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Enter Parent PIN") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = pin,
-                    onValueChange = { pin = it },
-                    label = { Text("PIN") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation()
-                )
-                if (!errorMessage.isNullOrEmpty()) {
-                    Text(errorMessage, color = MaterialTheme.colorScheme.error)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(pin) }) {
-                Text("Confirm")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}
