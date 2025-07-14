@@ -1,22 +1,4 @@
 plugins {
-<<<<<<< HEAD
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
-}
-
-android {
-    namespace = "com.example.stayfree"
-    compileSdk = 35
-
-    defaultConfig {
-        applicationId = "com.example.stayfree"
-        minSdk = 26
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
-
-=======
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.10"
@@ -27,12 +9,12 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.v02"
+        applicationId = "com.example.v02" 
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
->>>>>>> 8d58c39 (Initial commit)
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -45,42 +27,11 @@ android {
             )
         }
     }
-<<<<<<< HEAD
-=======
 
->>>>>>> 8d58c39 (Initial commit)
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-<<<<<<< HEAD
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-    buildFeatures {
-        compose = true
-    }
-}
-
-dependencies {
-
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
-}
-=======
 
     kotlinOptions {
         jvmTarget = "11"
@@ -91,16 +42,17 @@ dependencies {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.3" // ✅ Required for Kotlin 1.9.10 compatibility with Compose
+        kotlinCompilerExtensionVersion = "1.5.3"
     }
 }
 
 dependencies {
-    //SplashScreen dependency
+    // SplashScreen
     implementation("androidx.core:core-splashscreen:1.0.1")
 
-    //Coil dependency
+    // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.7.0")
+
     // Core + Lifecycle + Compose
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
@@ -113,7 +65,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
 
-    // Lifecycle & ViewModel
+    // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
 
@@ -138,4 +90,3 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
->>>>>>> 8d58c39 (Initial commit)
