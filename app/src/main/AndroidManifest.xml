@@ -2,8 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-<<<<<<< HEAD
-=======
     <!-- Permissions -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -21,7 +19,6 @@
         </intent>
     </queries>
 
->>>>>>> 8d58c39 (Initial commit)
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -30,32 +27,15 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-<<<<<<< HEAD
-        android:theme="@style/Theme.Stayfree"
-        tools:targetApi="31">
-=======
         android:theme="@style/Theme.SplashScreen"
         tools:targetApi="31">
 
-        <!-- Main activity -->
->>>>>>> 8d58c39 (Initial commit)
+        <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-<<<<<<< HEAD
             android:theme="@style/Theme.Stayfree">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-
-</manifest>
-=======
-            android:theme="@style/Theme.SplashScreen">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -94,6 +74,8 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/service_general" />
         </service>
+
+        <!-- Accessibility service for app time limits -->
         <service
             android:name=".timelimit.AppBlockerAccessibilityService"
             android:exported="false"
@@ -107,5 +89,6 @@
                 android:resource="@xml/service_general" />
         </service>
     </application>
+
 </manifest>
->>>>>>> 8d58c39 (Initial commit)
+
