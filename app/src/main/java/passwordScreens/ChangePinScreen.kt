@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -40,7 +41,8 @@ fun ChangePinScreen(viewModel: MainViewModel, requireCurrent: Boolean, onDone: (
         Modifier
             .fillMaxWidth()
             .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             if (requireCurrent) "Change Parent PIN" else "Set New Parent PIN",
@@ -134,8 +136,7 @@ fun ChangePinScreen(viewModel: MainViewModel, requireCurrent: Boolean, onDone: (
                     Toast.makeText(context, "Success! PIN changed.", Toast.LENGTH_SHORT).show()
                     onDone()
                 }
-            },
-            modifier = Modifier.fillMaxWidth()
+            }
         ) {
             Text("Save PIN")
         }

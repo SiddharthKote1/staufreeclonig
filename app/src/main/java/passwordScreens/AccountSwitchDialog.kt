@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -16,7 +17,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.v02.ReelsBlockingService.ChildProfile
 import kotlinx.coroutines.launch
@@ -47,15 +50,15 @@ fun AccountSwitcherDialog(
     var editingProfile by remember { mutableStateOf<ChildProfile?>(null) }
 
     var pinInput by remember { mutableStateOf("") }
-    var pinError by remember { mutableStateOf<String?>(null) }
+    var pinVisible by remember { mutableStateOf(false) }
 
     var expandedProfileMenu by remember { mutableStateOf<String?>(null) }
 
     var forgotPasswordMode by remember { mutableStateOf(false) }
     var recoveryAnswer by remember { mutableStateOf("") }
-    var recoveryError by remember { mutableStateOf<String?>(null) }
     var allowReset by remember { mutableStateOf(false) }
     var newPin by remember { mutableStateOf("") }
+    var newPinVisible by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -104,7 +107,7 @@ fun AccountSwitcherDialog(
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
                                 .clickable {
-                                    onSwitchToChild(profile) // ✅ No checks here anymore
+                                    onSwitchToChild(profile)
                                 },
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -192,33 +195,45 @@ fun AccountSwitcherDialog(
                         Spacer(Modifier.height(8.dp))
                         OutlinedTextField(
                             value = pinInput,
-                            onValueChange = { pinInput = it; pinError = null },
+                            onValueChange = {
+                                if (it.length <= 4 && it.all { ch -> ch.isDigit() }) {
+                                    pinInput = it
+                                }
+                            },
                             label = { Text("Enter PIN") },
                             singleLine = true,
-                            visualTransformation = PasswordVisualTransformation(),
+                            visualTransformation = if (pinVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                            trailingIcon = {
+                                val image =
+                                    if (pinVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                                IconButton(onClick = { pinVisible = !pinVisible }) {
+                                    Icon(image, contentDescription = if (pinVisible) "Hide PIN" else "Show PIN")
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth()
                         )
-                        pinError?.let {
-                            Spacer(Modifier.height(4.dp))
-                            Text(it, color = MaterialTheme.colorScheme.error)
-                        }
                         Spacer(Modifier.height(12.dp))
                         Button(
                             onClick = {
                                 scope.launch {
                                     when {
-                                        pinInput.isBlank() -> pinError = "Please enter your PIN"
+                                        pinInput.isBlank() ->
+                                            Toast.makeText(context, "Please enter your PIN", Toast.LENGTH_SHORT).show()
                                         else -> {
                                             val isCorrect = verifyParentPin(pinInput)
                                             if (isCorrect) {
+                                                Toast.makeText(context, "Switched to Parent Mode", Toast.LENGTH_SHORT)
+                                                    .show()
                                                 onSwitchToParent()
                                                 onDismiss()
-                                            } else pinError = "Incorrect PIN"
+                                            } else {
+                                                Toast.makeText(context, "Incorrect PIN", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
                                     }
                                 }
-                            },
-                            modifier = Modifier.fillMaxWidth()
+                            }
                         ) {
                             Text("Switch to Parent")
                         }
@@ -226,11 +241,7 @@ fun AccountSwitcherDialog(
                             if (savedRecoveryQuestion.isNotBlank()) {
                                 forgotPasswordMode = true
                             } else {
-                                Toast.makeText(
-                                    context,
-                                    "No recovery question set",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                Toast.makeText(context, "No recovery question set", Toast.LENGTH_SHORT).show()
                             }
                         }) {
                             Text("Forgot Password?")
@@ -241,27 +252,27 @@ fun AccountSwitcherDialog(
                             Spacer(Modifier.height(8.dp))
                             OutlinedTextField(
                                 value = recoveryAnswer,
-                                onValueChange = { recoveryAnswer = it; recoveryError = null },
+                                onValueChange = { recoveryAnswer = it },
                                 label = { Text("Your Answer") },
                                 modifier = Modifier.fillMaxWidth()
                             )
-                            recoveryError?.let {
-                                Spacer(Modifier.height(4.dp))
-                                Text(it, color = MaterialTheme.colorScheme.error)
-                            }
                             Spacer(Modifier.height(12.dp))
                             Button(
                                 onClick = {
                                     scope.launch {
                                         val correct = verifyRecoveryAnswer(recoveryAnswer)
                                         if (correct) {
+                                            Toast.makeText(
+                                                context,
+                                                "Answer Verified. You can reset PIN now.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                             allowReset = true
                                         } else {
-                                            recoveryError = "Incorrect Answer"
+                                            Toast.makeText(context, "Incorrect Answer", Toast.LENGTH_SHORT).show()
                                         }
                                     }
-                                },
-                                modifier = Modifier.fillMaxWidth()
+                                }
                             ) {
                                 Text("Verify Answer")
                             }
@@ -270,10 +281,22 @@ fun AccountSwitcherDialog(
                             Spacer(Modifier.height(8.dp))
                             OutlinedTextField(
                                 value = newPin,
-                                onValueChange = { newPin = it },
+                                onValueChange = {
+                                    if (it.length <= 4 && it.all { ch -> ch.isDigit() }) {
+                                        newPin = it
+                                    }
+                                },
                                 label = { Text("Enter New PIN") },
                                 singleLine = true,
-                                visualTransformation = PasswordVisualTransformation(),
+                                visualTransformation = if (newPinVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                                trailingIcon = {
+                                    val image =
+                                        if (newPinVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                                    IconButton(onClick = { newPinVisible = !newPinVisible }) {
+                                        Icon(image, contentDescription = if (newPinVisible) "Hide PIN" else "Show PIN")
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(Modifier.height(12.dp))
@@ -281,8 +304,11 @@ fun AccountSwitcherDialog(
                                 onClick = {
                                     if (newPin.isNotBlank()) {
                                         onResetParentPin(newPin)
+                                        Toast.makeText(context, "PIN Reset Successfully", Toast.LENGTH_SHORT).show()
                                         onSwitchToParent()
                                         onDismiss()
+                                    } else {
+                                        Toast.makeText(context, "Please enter a new PIN", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth()
@@ -311,7 +337,16 @@ fun AccountSwitcherDialog(
                                 id = editingProfile?.id ?: UUID.randomUUID().toString(),
                                 name = editorName.text.trim()
                             )
-                            onAddOrUpdateChild(updated)
+                            if (updated.name.isNotBlank()) {
+                                onAddOrUpdateChild(updated)
+                                Toast.makeText(
+                                    context,
+                                    if (editingProfile == null) "Child Added" else "Child Updated",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                Toast.makeText(context, "Name cannot be empty", Toast.LENGTH_SHORT).show()
+                            }
                             showEditor = false
                         }) {
                             Text(if (editingProfile == null) "Add" else "Update")
@@ -322,4 +357,6 @@ fun AccountSwitcherDialog(
         }
     )
 }
+
+
 
