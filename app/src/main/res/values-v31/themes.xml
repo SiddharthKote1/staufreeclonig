@@ -4,6 +4,6 @@
     <style name="Theme.SplashScreen" parent="android:Theme.DeviceDefault.Light.NoActionBar">
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/iconof</item>
         <item name="android:windowSplashScreenBackground">@color/Blue</item>
-        <item name="postSplashScreenTheme">@style/Theme.SplashScreen</item>
+        <item name="postSplashScreenTheme">@style/Theme.Stayfree</item>
     </style>
 </resources>

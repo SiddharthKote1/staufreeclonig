@@ -1,207 +1,248 @@
 package com.example.v02.screens
 
-import android.app.DatePickerDialog
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.v02.R
-import java.util.Calendar
+import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AppInfoScreen(
-    navController : NavController
-){
+    navController: NavController
+) {
     val context = LocalContext.current
-    var showDialog by remember {mutableStateOf(false)}
-    var age by remember {mutableStateOf(15f)}
-    var dateOfBirth by remember { mutableStateOf("") }
-    val calendar = Calendar.getInstance()
-    val year = calendar.get(Calendar.YEAR)
-    val month = calendar.get(Calendar.MONTH)
-    val day = calendar.get(Calendar.DAY_OF_MONTH)
-    val currentYear = calendar.get(Calendar.YEAR)
+    val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+
+    var d1 by remember { mutableStateOf("") }
+    var d2 by remember { mutableStateOf("") }
+    var d3 by remember { mutableStateOf("") }
+    var d4 by remember { mutableStateOf("") }
+
+    val focusManager = LocalFocusManager.current
+    val requester1 = remember { FocusRequester() }
+    val requester2 = remember { FocusRequester() }
+    val requester3 = remember { FocusRequester() }
+    val requester4 = remember { FocusRequester() }
 
 
-    val datePicker = DatePickerDialog(
-        context,
-        { _, selectedYear, selectedMonth, selectedDay ->
-            dateOfBirth = "$selectedDay/${selectedMonth + 1}/$selectedYear"
-        },
-        year, month, day
-    ).apply {
-        datePicker.maxDate = calendar.timeInMillis
+    val birthYear = listOf(d1, d2, d3, d4).joinToString("")
+    val isAdult = remember(birthYear) {
+        val year = birthYear.toIntOrNull() ?: 0
+        (year > 0) && ((currentYear - year) >= 18)
     }
 
-    val isAdult = remember(dateOfBirth) {
-        if (dateOfBirth.isNotEmpty()) {
-            val yearOfBirth = dateOfBirth.split("/").last().toIntOrNull() ?: 0
-            (currentYear - yearOfBirth) >= 18
-        } else {
-            false
-        }
-    }
     Box(
-        modifier=Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    listOf(
-                        Color(0xFFB0BEC5),
-                        Color(0xFF81D4FA)
-                    )
+                    listOf(Color(0xFFF5F5F5), Color(0xFFE0E0E0))
                 )
             )
+
     ) {
         Column(
-            modifier = Modifier.fillMaxSize()
-                .fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .imeNestedScroll()
+                .padding(bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
             Image(
-                painter = painterResource(
-                    id = R.drawable.rightsiz
-                ),
-                contentDescription = null
+                painter = painterResource(id = R.drawable.info),
+                contentDescription = null,
+                modifier = Modifier.size(300.dp)
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Column {
-                Text(
-                    text = "StayFree is absolutely free to use with zero hidden fees. " +
-                            "Your data and your privacy are our first concerns — " +
-                            "we don't collect personal information or share your " +
-                            "usage stats with anyone. Use all features securely and safely.",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 5.dp),
-                    color = Color.Black,
-                    fontSize = 16.sp
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Column {
-                    Text(
-                        text = "StayFree allows you to keep track of and control your" +
-                                " screen time by measuring app usage and providing " +
-                                "reminders. It promotes healthier phone " +
-                                "behaviors so you can be focused and balanced during your day.",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 16.dp),
-                        color = Color.Black,
-                        fontSize = 16.sp
-                    )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
 
-                Text("Select your Date of Birth",
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.align(Alignment.Start)
-                        .padding(start=20.dp,end=20.dp),
-                    fontSize = 20.sp)
-                Box(modifier=Modifier.fillMaxWidth()
-                    .padding(start=10.dp,end=10.dp)
-                    .clickable{ datePicker.show()}) {
-                    OutlinedTextField(
-                        value = dateOfBirth,
-                        onValueChange = {
-                        },
-                        label = { Text("Select your date of birth") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 10.dp, end = 10.dp),
-                        readOnly = true,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFE1F5FE),
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color(0xFF0288D1),
-                            unfocusedIndicatorColor = Color(0xFF90A4AE),
-                            focusedLabelColor = Color(0xFF0288D1),
-                            unfocusedLabelColor = Color(0xFF607D8B),
-                            cursorColor = Color(0xFF0288D1)
-                        ),
-                        trailingIcon = {
-                            IconButton(onClick = { datePicker.show() }) {
-                                Icon(Icons.Default.DateRange, contentDescription = "Select DOB")
-                            }
-                        },
-                    )
-                }
-                Spacer(modifier = Modifier.height(5.dp))
-                Row(modifier=Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center){
+            Spacer(modifier = Modifier.height(4.dp))
 
-                    Button(
-                        onClick = {
-                            when {
-                                dateOfBirth.isEmpty() -> {
-                                    Toast.makeText(
-                                        context,
-                                        "Please select your date of birth",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                                !isAdult -> {
-                                    Toast.makeText(
-                                        context,
-                                        "You must be 18 or older to continue",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                                else -> {
-                                    navController.navigate("usage_permission")
-                                }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            contentColor = Color.White,
-                            containerColor = Color(0xFF00ACC1)
-                        )
-                    ) {
-                        Text("Continue")
+            Text(
+                text = "StayFree helps you track and control screen time with reminders for healthier phone use. It's free, with no hidden fees, and we value your privacy — no personal data is collected or shared."
+                ,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                color = Color.Black,
+                fontSize = 16.sp
+            )
+
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                "Enter your Year of Birth",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .align(Alignment.Start)
+                    .padding(start = 20.dp, end = 20.dp),
+                fontSize = 20.sp
+            )
+
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                // 1st Digit
+                UnderlinedDigit(
+                    value = d1,
+                    modifier = Modifier.focusRequester(requester1),
+                    onValueChange = {
+                        if (it.length <= 1 && it.all { c -> c.isDigit() }) {
+                            d1 = it
+                            if (it.isNotEmpty()) requester2.requestFocus()
+                        }
                     }
-                }
+                )
+                Spacer(modifier = Modifier.width(20.dp))
+
+                // 2nd Digit
+                UnderlinedDigit(
+                    value = d2,
+                    modifier = Modifier.focusRequester(requester2),
+                    onValueChange = {
+                        if (it.length <= 1 && it.all { c -> c.isDigit() }) {
+                            d2 = it
+                            if (it.isNotEmpty()) requester3.requestFocus()
+                        }
+                    },
+                    onBackspace = {
+                        requester1.requestFocus() // ✅ Back to first when empty + backspace
+                    }
+                )
+                Spacer(modifier = Modifier.width(20.dp))
+
+                // 3rd Digit
+                UnderlinedDigit(
+                    value = d3,
+                    modifier = Modifier.focusRequester(requester3),
+                    onValueChange = {
+                        if (it.length <= 1 && it.all { c -> c.isDigit() }) {
+                            d3 = it
+                            if (it.isNotEmpty()) requester4.requestFocus()
+                        }
+                    },
+                    onBackspace = {
+                        requester2.requestFocus() // ✅ Back to second
+                    }
+                )
+                Spacer(modifier = Modifier.width(20.dp))
+
+                // 4th Digit
+                UnderlinedDigit(
+                    value = d4,
+                    modifier = Modifier.focusRequester(requester4),
+                    onValueChange = {
+                        if (it.length <= 1 && it.all { c -> c.isDigit() }) {
+                            d4 = it
+                            if (it.isNotEmpty()) focusManager.clearFocus()
+                        }
+                    },
+                    onBackspace = {
+                        requester3.requestFocus() // ✅ Back to third
+                    }
+                )
+            }
+
+
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Button(
+                onClick = {
+                    focusManager.clearFocus()
+                    when {
+                        birthYear.length < 4 -> {
+                            Toast.makeText(
+                                context,
+                                "Please enter your full birth year",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        !isAdult -> {
+                            Toast.makeText(
+                                context,
+                                "You must be 18 or older to continue",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        else -> {
+                            navController.navigate("usage_permission")
+                        }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    contentColor = Color.White,
+                    containerColor = Color(0xFF00ACC1)
+                )
+            ) {
+                Text("Continue")
             }
         }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UnderlinedDigit(
+    value: String,
+    modifier: Modifier = Modifier,
+    onValueChange: (String) -> Unit,
+    onBackspace: (() -> Unit)? = null
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier
+            .width(50.dp)
+            .onKeyEvent {
+                if (it.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_DEL &&
+                    value.isEmpty()
+                ) {
+                    onBackspace?.invoke()
+                    true
+                } else {
+                    false
+                }
+            },
+        singleLine = true,
+        textStyle = LocalTextStyle.current.copy(fontSize = 22.sp),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        colors = TextFieldDefaults.colors(
+            unfocusedContainerColor = Color.Transparent,
+            focusedContainerColor = Color.Transparent,
+            focusedIndicatorColor = Color.Black,
+            unfocusedIndicatorColor = Color.Black,
+            cursorColor = Color.Black
+        )
+    )
+}
+
 
 @Preview(showSystemUi = true, showBackground = true)
 @Composable

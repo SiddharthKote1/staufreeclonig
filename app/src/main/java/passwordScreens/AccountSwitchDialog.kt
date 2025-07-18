@@ -35,11 +35,11 @@ fun AccountSwitcherDialog(
     savedRecoveryQuestion: String,
     verifyParentPin: suspend (String) -> Boolean,
     verifyRecoveryAnswer: suspend (String) -> Boolean,
-    onResetParentPin: (String) -> Unit,
     onAddOrUpdateChild: (ChildProfile) -> Unit,
     onDeleteChild: (String) -> Unit,
     onSwitchToParent: () -> Unit,
     onSwitchToChild: (ChildProfile) -> Unit,
+    onNavigateToChangePin: () -> Unit, // ✅ NEW callback for navigation
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -56,9 +56,6 @@ fun AccountSwitcherDialog(
 
     var forgotPasswordMode by remember { mutableStateOf(false) }
     var recoveryAnswer by remember { mutableStateOf("") }
-    var allowReset by remember { mutableStateOf(false) }
-    var newPin by remember { mutableStateOf("") }
-    var newPinVisible by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -247,74 +244,31 @@ fun AccountSwitcherDialog(
                             Text("Forgot Password?")
                         }
                     } else {
-                        if (!allowReset) {
-                            Text(savedRecoveryQuestion, style = MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.height(8.dp))
-                            OutlinedTextField(
-                                value = recoveryAnswer,
-                                onValueChange = { recoveryAnswer = it },
-                                label = { Text("Your Answer") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            Button(
-                                onClick = {
-                                    scope.launch {
-                                        val correct = verifyRecoveryAnswer(recoveryAnswer)
-                                        if (correct) {
-                                            Toast.makeText(
-                                                context,
-                                                "Answer Verified. You can reset PIN now.",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                            allowReset = true
-                                        } else {
-                                            Toast.makeText(context, "Incorrect Answer", Toast.LENGTH_SHORT).show()
-                                        }
+                        // ✅ Recovery Question Flow → Direct Navigation
+                        Text(savedRecoveryQuestion, style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = recoveryAnswer,
+                            onValueChange = { recoveryAnswer = it },
+                            label = { Text("Your Answer") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    val correct = verifyRecoveryAnswer(recoveryAnswer)
+                                    if (correct) {
+                                        Toast.makeText(context, "Answer Verified", Toast.LENGTH_SHORT).show()
+                                        onDismiss()
+                                        onNavigateToChangePin() // ✅ Open ChangePinScreen
+                                    } else {
+                                        Toast.makeText(context, "Incorrect Answer", Toast.LENGTH_SHORT).show()
                                     }
                                 }
-                            ) {
-                                Text("Verify Answer")
                             }
-                        } else {
-                            Text("Reset Parent PIN", style = MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.height(8.dp))
-                            OutlinedTextField(
-                                value = newPin,
-                                onValueChange = {
-                                    if (it.length <= 4 && it.all { ch -> ch.isDigit() }) {
-                                        newPin = it
-                                    }
-                                },
-                                label = { Text("Enter New PIN") },
-                                singleLine = true,
-                                visualTransformation = if (newPinVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                                trailingIcon = {
-                                    val image =
-                                        if (newPinVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                                    IconButton(onClick = { newPinVisible = !newPinVisible }) {
-                                        Icon(image, contentDescription = if (newPinVisible) "Hide PIN" else "Show PIN")
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            Button(
-                                onClick = {
-                                    if (newPin.isNotBlank()) {
-                                        onResetParentPin(newPin)
-                                        Toast.makeText(context, "PIN Reset Successfully", Toast.LENGTH_SHORT).show()
-                                        onSwitchToParent()
-                                        onDismiss()
-                                    } else {
-                                        Toast.makeText(context, "Please enter a new PIN", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Reset & Switch to Parent")
-                            }
+                        ) {
+                            Text("Verify & Reset PIN")
                         }
                     }
                 }
@@ -357,6 +311,5 @@ fun AccountSwitcherDialog(
         }
     )
 }
-
 
 

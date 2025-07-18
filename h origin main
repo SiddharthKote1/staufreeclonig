@@ -1,0 +1,69 @@
+[33mcommit aed86f46be216950cf73f4afddea35018b3415a3[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: Siddharth Kote <Siddharthkote128@gmail.com>
+Date:   Fri Jul 18 10:46:54 2025 +0530
+
+    Your last birthday
+
+[33mcommit 083293dd0afac6f9038df7103740e12341d6d4b1[m[33m ([m[1;31morigin/main[m[33m)[m
+Author: Siddharth Kote <Siddharthkote128@gmail.com>
+Date:   Fri Jul 18 09:54:03 2025 +0530
+
+    your message
+
+[33mcommit fa1f49223f4f5599509d9572cb227515b8678b3f[m[33m ([m[1;31morigin/newpass[m[33m)[m
+Author: Siddharth Kote <Siddharthkote128@gmail.com>
+Date:   Fri Jul 18 08:47:22 2025 +0530
+
+    Updated AndroidManifest and project changes
+
+[33mcommit 08dd70f10788a810fdb832684c9750199670f3ae[m[33m ([m[1;31morigin/password[m[33m, [m[1;31morigin/Profilestayfree[m[33m, [m[1;32mpassword[m[33m, [m[1;32mProfilestayfree[m[33m)[m
+Author: Siddharth Kote <Siddharthkote128@gmail.com>
+Date:   Mon Jul 14 11:46:30 2025 +0530
+
+    Latest
+
+[33mcommit 0ac36a5814a426522c1a1a308ed9c116c7683f22[m
+Author: Siddharth Kote <Siddharthkote128@gmail.com>
+Date:   Mon Jul 14 11:22:32 2025 +0530
+
+    Password integrate
+
+[33mcommit df6ecc5e144cdffbbd76e72b58183a1eeefec0b0[m
+Author: Siddharth Kote <Siddharthkote128@gmail.com>
+Date:   Mon Jul 14 08:06:06 2025 +0530
+
+    profile work
+
+[33mcommit 75971c99a855be9ab6ecacc53a6433de131a0672[m
+Author: Siddharth Kote <Siddharthkote128@gmail.com>
+Date:   Sun Jul 13 20:55:10 2025 +0530
+
+    Setup profiles
+
+[33mcommit ba34c5c8e7d0d4222992d3f43258765a60f1ab50[m
+Author: Siddharth Kote <Siddharthkote128@gmail.com>
+Date:   Sun Jul 13 19:03:40 2025 +0530
+
+    PRofile work
+
+[33mcommit 713e86b7c7b26f27b851d94b6b0b9fe32f1223ea[m
+Author: Siddharth Kote <Siddharthkote128@gmail.com>
+Date:   Sat Jul 12 20:41:49 2025 +0530
+
+    Initial commit
+    
+    git push -u origin password
+    git push -u origin password
+    .git/COMMIT_EDITMSG[+] [unix] (11:24 14/07/2025)                                                                                         103,1 Bot
+
+[33mcommit 9f139ca46d23173da7bf32671ddda0b50d1cfd2c[m
+Author: Manthan Singla <manthansingla786@gmail.com>
+Date:   Thu Jun 26 10:06:25 2025 +0530
+
+    Merge remote-tracking branch 'origin/master' with unrelated histories
+
+[33mcommit 081f6ab29f018e580e4bd82a5f0556fa0e0ac931[m
+Author: Manthan Singla <manthansingla786@gmail.com>
+Date:   Thu Jun 26 10:03:12 2025 +0530
+
+    Initial Commit

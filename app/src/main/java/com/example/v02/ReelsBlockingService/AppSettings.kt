@@ -27,14 +27,12 @@ data class AppSettings(
 data class ChildProfile(
     val name: String,
     val id: String = UUID.randomUUID().toString(),
-
     val instagram: App = App(),
     val facebook: App = App(),
     val youtube: YouTubeApp = YouTubeApp(),
     val twitter: TwitterApp = TwitterApp(),
     val whatsapp: WhatsAppApp = WhatsAppApp(),
     val snapchat: SnapchatApp = SnapchatApp(),
-
     val appTimeLimits: Map<String, Int> = emptyMap(),
     val bedtimeStart: String = "",
     val bedtimeEnd: String = ""

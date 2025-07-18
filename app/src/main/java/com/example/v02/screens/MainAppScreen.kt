@@ -13,12 +13,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import com.example.v02.MainScreen
-import com.example.v02.ReelsBlockingService.ChildProfile
 import com.example.v02.ReelsBlockingService.MainViewModel
 import com.example.v02.navigation.BottomNavItem
 import kotlinx.coroutines.delay
@@ -50,7 +48,10 @@ fun MainAppScreen(viewModel: MainViewModel) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val fullScreenRoutes = listOf("started_screen", "app_info", "usage_permission")
-    val showBottomBar = remember { mutableStateOf(false) }
+
+    // ✅ FIX: No flash — only show bottom bar after first route is resolved
+    val isInitialRouteResolved = currentRoute != null
+    val showBottomBar = isInitialRouteResolved && currentRoute !in fullScreenRoutes
 
     val childProfiles by viewModel.childProfiles.collectAsState(initial = emptyList())
     val activeChildId by viewModel.activeChildId.collectAsState(initial = "")
@@ -58,7 +59,6 @@ fun MainAppScreen(viewModel: MainViewModel) {
 
     val isUnlocked = remember { mutableStateOf(isParent) }
 
-    // ✅ States for PIN Dialog
     val showPinDialog = remember { mutableStateOf(false) }
     val pinInput = remember { mutableStateOf("") }
     val pinError = remember { mutableStateOf<String?>(null) }
@@ -66,11 +66,6 @@ fun MainAppScreen(viewModel: MainViewModel) {
 
     LaunchedEffect(accountMode) {
         isUnlocked.value = isParent
-    }
-
-    LaunchedEffect(currentRoute) {
-        showBottomBar.value = currentRoute !in fullScreenRoutes
-        if (showBottomBar.value) delay(80)
     }
 
     Box {
@@ -128,7 +123,7 @@ fun MainAppScreen(viewModel: MainViewModel) {
                 }
             },
             bottomBar = {
-                if (showBottomBar.value) {
+                if (showBottomBar) {
                     NavigationBar {
                         val curDest = navBackStackEntry?.destination
                         listOf(
@@ -146,7 +141,6 @@ fun MainAppScreen(viewModel: MainViewModel) {
                                             restoreState = true
                                         }
                                     } else {
-                                        // ✅ Show PIN dialog in Child Mode
                                         showPinDialog.value = true
                                         pinInput.value = ""
                                         pinError.value = null
@@ -199,7 +193,6 @@ fun MainAppScreen(viewModel: MainViewModel) {
             }
         }
 
-        // ✅ Parent PIN Dialog for Child Mode
         if (showPinDialog.value) {
             AlertDialog(
                 onDismissRequest = { showPinDialog.value = false },
@@ -253,12 +246,6 @@ fun MainAppScreen(viewModel: MainViewModel) {
                 savedRecoveryQuestion = viewModel.secretQuestion.collectAsState(initial = "").value,
                 verifyParentPin = { enteredPin -> viewModel.pinCode.first() == enteredPin },
                 verifyRecoveryAnswer = { answer -> viewModel.isSecretAnswerCorrect(answer) },
-                onResetParentPin = { newPin ->
-                    scope.launch {
-                        viewModel.setPinCode(newPin)
-                        Toast.makeText(context, "Parent PIN Reset Successfully", Toast.LENGTH_SHORT).show()
-                    }
-                },
                 onAddOrUpdateChild = { scope.launch { viewModel.addOrUpdateChild(it) } },
                 onDeleteChild = { scope.launch { viewModel.deleteChild(it) } },
                 onSwitchToParent = {
@@ -278,13 +265,11 @@ fun MainAppScreen(viewModel: MainViewModel) {
                                 showSwitchDialog.value = false
                                 navController.navigate("change_pin_no_current")
                             }
-
                             !hasQASet -> {
                                 Toast.makeText(context, "Please set Recovery Q/A before switching to Child mode", Toast.LENGTH_LONG).show()
                                 showSwitchDialog.value = false
                                 navController.navigate("set_qa")
                             }
-
                             else -> {
                                 viewModel.setActiveChild(profile.id)
                                 viewModel.setAccountMode("Child")
@@ -294,9 +279,12 @@ fun MainAppScreen(viewModel: MainViewModel) {
                         }
                     }
                 },
+                onNavigateToChangePin = {
+                    showSwitchDialog.value = false
+                    navController.navigate("change_pin_no_current")
+                },
                 onDismiss = { showSwitchDialog.value = false }
             )
         }
     }
 }
-

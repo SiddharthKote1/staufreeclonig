@@ -1,12 +1,9 @@
 package com.example.v02
 
-import android.Manifest
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.AppOpsManager
 import android.content.ComponentName
 import android.content.Context
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.TextUtils
@@ -21,12 +18,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.example.v02.ReelsBlockingService.MainViewModel
 import com.example.v02.screens.MainAppScreen
 import com.example.v02.timelimit.AppMonitoringService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
 
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
@@ -35,6 +35,8 @@ class MainActivity : ComponentActivity() {
 
     }
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
+
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val viewModel = MainViewModel(application = application)

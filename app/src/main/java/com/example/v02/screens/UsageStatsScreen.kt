@@ -1,38 +1,39 @@
 package com.example.v02.screens
 
-import android.Manifest
 import android.app.AppOpsManager
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
-import android.os.Build
 import android.os.Process
 import android.provider.Settings
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -51,44 +52,36 @@ fun UsageStatsScreen() {
     var appUsageList by remember { mutableStateOf<List<AppUsageInfo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
+    var selectedRange by remember { mutableStateOf("Last 15 Days") }
+    var dropdownExpanded by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
+    var isSearchFocused by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
 
-    val requestNotificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (!isGranted) {
-            Toast.makeText(
-                context,
-                "Notification permission denied. Some features may not work properly.",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
+    val rangeOptions = listOf("Today", "Yesterday", "Last 15 Days", "Month")
 
-    BackHandler(enabled = searchQuery.isNotEmpty()) {
+    // ✅ Handle Back Button (Close keyboard first)
+    BackHandler(enabled = isSearchFocused) {
         focusManager.clearFocus()
-        searchQuery = ""
+        isSearchFocused = false
     }
 
-    LaunchedEffect(Unit) {
-        delay(2000)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-
+    // Load Data
+    LaunchedEffect(selectedRange) {
         if (!hasUsageStatsPermission(context)) {
             Toast.makeText(context, "Please grant Usage Access Permission", Toast.LENGTH_LONG).show()
             context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
             return@LaunchedEffect
         }
 
-        appUsageList = getAppUsageStats(context)
+        isLoading = true
+        appUsageList = when (selectedRange) {
+            "Today" -> getAppUsageStats(context, 0)
+            "Yesterday" -> getAppUsageStats(context, 1)
+            "Last 15 Days" -> getAppUsageStats(context, 15)
+            "Month" -> getAppUsageStats(context, 30)
+            else -> emptyList()
+        }
         isLoading = false
     }
 
@@ -103,12 +96,18 @@ fun UsageStatsScreen() {
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    focusManager.clearFocus()
+                    isSearchFocused = false
+                })
+            }
     ) {
         Text(
             text = "App Usage Statistics",
-            fontSize = 24.sp,
+            fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 12.dp)
         )
 
         OutlinedTextField(
@@ -117,25 +116,57 @@ fun UsageStatsScreen() {
             label = { Text("Search apps") },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            singleLine = true
-        )
-
-        Text(
-            text = "Last 24 hours",
-            fontSize = 16.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 16.dp)
+                .padding(bottom = 12.dp)
+                .focusRequester(focusRequester)
+                .onFocusChanged { focusState ->
+                    isSearchFocused = focusState.isFocused
+                },
+            singleLine = true,
+            shape= RoundedCornerShape(4.dp)
         )
 
         if (!isLoading && filteredList.isNotEmpty()) {
             val totalTime = filteredList.sumOf { it.usageTime }
             val topApp = filteredList.maxByOrNull { it.usageTime }
 
+            // ✅ Dropdown
+            Box(modifier = Modifier.wrapContentWidth(), contentAlignment = Alignment.CenterStart) {
+                OutlinedButton(
+                    onClick = { dropdownExpanded = !dropdownExpanded },
+                    modifier = Modifier.wrapContentWidth()
+                ) {
+                    Text(selectedRange)
+                    Icon(
+                        imageVector = if (dropdownExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                        contentDescription = "Dropdown"
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = dropdownExpanded,
+                    onDismissRequest = { dropdownExpanded = false }
+                ) {
+                    rangeOptions.forEach { range ->
+                        DropdownMenuItem(
+                            text = { Text(range) },
+                            onClick = {
+                                selectedRange = range
+                                dropdownExpanded = false
+                                focusManager.clearFocus()
+                                isSearchFocused = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 12.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -146,9 +177,7 @@ fun UsageStatsScreen() {
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
-
                     Spacer(modifier = Modifier.height(8.dp))
-
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -176,13 +205,11 @@ fun UsageStatsScreen() {
     }
 }
 
-
 @Composable
 fun AppUsageCard(appUsage: AppUsageInfo) {
     val iconBitmap = remember(appUsage.icon) {
         appUsage.icon?.toBitmap(48, 48)?.asImageBitmap()
     }
-
     val formattedTime = remember(appUsage.usageTime) {
         formatUsageTime(appUsage.usageTime)
     }
@@ -198,66 +225,61 @@ fun AppUsageCard(appUsage: AppUsageInfo) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             iconBitmap?.let {
-                Image(
-                    bitmap = it,
-                    contentDescription = "${appUsage.appName} icon",
-                    modifier = Modifier.size(48.dp)
-                )
+                Image(bitmap = it, contentDescription = "${appUsage.appName} icon", modifier = Modifier.size(48.dp))
             }
-
             Spacer(modifier = Modifier.width(16.dp))
-
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = appUsage.appName,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = formattedTime,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text(appUsage.appName, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                Text(formattedTime, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
 }
 
-suspend fun getAppUsageStats(context: Context): List<AppUsageInfo> = withContext(Dispatchers.Default) {
-    val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-    val packageManager = context.packageManager
+suspend fun getAppUsageStats(context: Context, days: Int): List<AppUsageInfo> =
+    withContext(Dispatchers.Default) {
+        val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val packageManager = context.packageManager
 
-    val calendar = Calendar.getInstance()
-    val endTime = calendar.timeInMillis
-    calendar.add(Calendar.DAY_OF_YEAR, -1)
-    val startTime = calendar.timeInMillis
+        val calendar = Calendar.getInstance()
+        val endTime = calendar.timeInMillis
 
-    val usageStats = usageStatsManager.queryUsageStats(
-        UsageStatsManager.INTERVAL_DAILY,
-        startTime,
-        endTime
-    )
-
-    val aggregatedStats = usageStats
-        .filter { it.totalTimeInForeground > 0 }
-        .groupBy { it.packageName }
-        .mapValues { it.value.sumOf { it.totalTimeInForeground } }
-
-    aggregatedStats.entries
-        .sortedByDescending { it.value }
-        .take(20)
-        .mapNotNull { (packageName, totalUsageTime) ->
-            try {
-                val appInfo = packageManager.getApplicationInfo(packageName, 0)
-                val appName = packageManager.getApplicationLabel(appInfo).toString()
-                val icon = packageManager.getApplicationIcon(packageName)
-                AppUsageInfo(appName, packageName, totalUsageTime, icon)
-            } catch (e: Exception) {
-                Log.w("AppUsage", "Skipping $packageName due to ${e.message}")
-                null
-            }
+        if (days == 0) {
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+        } else {
+            calendar.add(Calendar.DAY_OF_YEAR, -days)
         }
-}
+
+        val startTime = calendar.timeInMillis
+
+        val usageStats = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_DAILY,
+            startTime,
+            endTime
+        )
+
+        val aggregatedStats = usageStats
+            .filter { it.totalTimeInForeground > 0 }
+            .groupBy { it.packageName }
+            .mapValues { it.value.sumOf { it.totalTimeInForeground } }
+
+        aggregatedStats.entries
+            .sortedByDescending { it.value }
+            .take(50)
+            .mapNotNull { (packageName, totalUsageTime) ->
+                try {
+                    val appInfo = packageManager.getApplicationInfo(packageName, 0)
+                    val appName = packageManager.getApplicationLabel(appInfo).toString()
+                    val icon = packageManager.getApplicationIcon(packageName)
+                    AppUsageInfo(appName, packageName, totalUsageTime, icon)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+    }
 
 fun formatUsageTime(timeInMillis: Long): String {
     val hours = TimeUnit.MILLISECONDS.toHours(timeInMillis)
