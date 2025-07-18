@@ -1,6 +1,5 @@
 package com.example.v02.screens
 
-import AccountSwitcherDialog
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
@@ -13,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -24,9 +24,9 @@ import com.example.v02.navigation.BottomNavItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import passwordScreens.AccountSwitcherDialog
 import passwordScreens.ChangePinScreen
 import passwordScreens.SetRecoveryQAScreen
-import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,10 +56,13 @@ fun MainAppScreen(viewModel: MainViewModel) {
     val activeChildId by viewModel.activeChildId.collectAsState(initial = "")
     val activeChildProfile = childProfiles.find { it.id == activeChildId }
 
-    val showPinDialog = remember { mutableStateOf(false) }
-    val pendingTabRoute = remember { mutableStateOf<String?>(null) }
-    var enteredPin by remember { mutableStateOf("") }
     val isUnlocked = remember { mutableStateOf(isParent) }
+
+    // ✅ States for PIN Dialog
+    val showPinDialog = remember { mutableStateOf(false) }
+    val pinInput = remember { mutableStateOf("") }
+    val pinError = remember { mutableStateOf<String?>(null) }
+    val pendingTabToOpen = remember { mutableStateOf<BottomNavItem?>(null) }
 
     LaunchedEffect(accountMode) {
         isUnlocked.value = isParent
@@ -136,17 +139,18 @@ fun MainAppScreen(viewModel: MainViewModel) {
                             NavigationBarItem(
                                 selected = curDest?.hierarchy?.any { it.route == tab.route } == true,
                                 onClick = {
-                                    if (isUnlocked.value || tab == BottomNavItem.UsageStats) {
+                                    if (tab == BottomNavItem.UsageStats || isUnlocked.value) {
                                         navController.navigate(tab.route) {
-                                            popUpTo(navController.graph.findStartDestination().id) {
-                                                saveState = true
-                                            }
+                                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                             launchSingleTop = true
                                             restoreState = true
                                         }
                                     } else {
-                                        pendingTabRoute.value = tab.route
+                                        // ✅ Show PIN dialog in Child Mode
                                         showPinDialog.value = true
+                                        pinInput.value = ""
+                                        pinError.value = null
+                                        pendingTabToOpen.value = tab
                                     }
                                 },
                                 icon = { Icon(tab.icon, contentDescription = null) },
@@ -178,26 +182,66 @@ fun MainAppScreen(viewModel: MainViewModel) {
                 composable(BottomNavItem.InAppBlocking.route) { InAppBlockingScreen(viewModel) }
                 composable(BottomNavItem.TimeLimits.route) { MainScreen() }
                 composable("change_pin") {
-                    ChangePinScreen(viewModel, requireCurrent = true) {
-                        navController.popBackStack()
-                    }
+                    ChangePinScreen(viewModel, requireCurrent = true) { navController.popBackStack() }
                 }
                 composable("change_pin_no_current") {
-                    ChangePinScreen(viewModel, requireCurrent = false) {
-                        navController.popBackStack()
-                    }
+                    ChangePinScreen(viewModel, requireCurrent = false) { navController.popBackStack() }
                 }
                 composable("reset_pin") {
-                    ChangePinScreen(viewModel, requireCurrent = false) {
-                        navController.popBackStack()
-                    }
+                    ChangePinScreen(viewModel, requireCurrent = false) { navController.popBackStack() }
                 }
                 composable("set_qa") {
                     SetRecoveryQAScreen(viewModel) {
                         navController.popBackStack()
+                        Toast.makeText(context, "Recovery Question Set!", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
+        }
+
+        // ✅ Parent PIN Dialog for Child Mode
+        if (showPinDialog.value) {
+            AlertDialog(
+                onDismissRequest = { showPinDialog.value = false },
+                title = { Text("Enter Parent PIN") },
+                text = {
+                    Column {
+                        OutlinedTextField(
+                            value = pinInput.value,
+                            onValueChange = { pinInput.value = it; pinError.value = null },
+                            label = { Text("PIN") },
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation()
+                        )
+                        pinError.value?.let {
+                            Text(it, color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        scope.launch {
+                            val correct = viewModel.pinCode.first() == pinInput.value
+                            if (correct) {
+                                isUnlocked.value = true
+                                showPinDialog.value = false
+                                pendingTabToOpen.value?.let { tab ->
+                                    navController.navigate(tab.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            } else {
+                                pinError.value = "Incorrect PIN"
+                            }
+                        }
+                    }) { Text("Unlock") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showPinDialog.value = false }) { Text("Cancel") }
+                }
+            )
         }
 
         if (showSwitchDialog.value) {
@@ -205,20 +249,18 @@ fun MainAppScreen(viewModel: MainViewModel) {
                 currentMode = accountMode,
                 currentProfile = activeChildProfile,
                 childProfiles = childProfiles,
-                onAddOrUpdateChild = {
+                hasPin = hasPin,
+                savedRecoveryQuestion = viewModel.secretQuestion.collectAsState(initial = "").value,
+                verifyParentPin = { enteredPin -> viewModel.pinCode.first() == enteredPin },
+                verifyRecoveryAnswer = { answer -> viewModel.isSecretAnswerCorrect(answer) },
+                onResetParentPin = { newPin ->
                     scope.launch {
-                        viewModel.addOrUpdateChild(it)
+                        viewModel.setPinCode(newPin)
+                        Toast.makeText(context, "Parent PIN Reset Successfully", Toast.LENGTH_SHORT).show()
                     }
                 },
-                onDeleteChild = {
-                    scope.launch {
-                        viewModel.deleteChild(it)
-                    }
-                },
-                verifyParentPin = { enteredPin ->
-                    val stored = viewModel.pinCode.first()
-                    enteredPin == stored
-                },
+                onAddOrUpdateChild = { scope.launch { viewModel.addOrUpdateChild(it) } },
+                onDeleteChild = { scope.launch { viewModel.deleteChild(it) } },
                 onSwitchToParent = {
                     scope.launch {
                         viewModel.setAccountMode("Parent")
@@ -227,71 +269,34 @@ fun MainAppScreen(viewModel: MainViewModel) {
                 },
                 onSwitchToChild = { profile ->
                     scope.launch {
-                        val hasPin = viewModel.hasPin.first()
-                        if (hasPin) {
-                            viewModel.setActiveChild(profile.id)
-                            viewModel.setAccountMode("Child")
-                            isUnlocked.value = false
-                        } else {
-                            Toast.makeText(context, "Set a Parent PIN before switching to Child mode", Toast.LENGTH_LONG).show()
-                            navController.navigate("change_pin_no_current")
+                        val hasPinSet = viewModel.hasPin.first()
+                        val hasQASet = viewModel.hasSecretQA.first()
+
+                        when {
+                            !hasPinSet -> {
+                                Toast.makeText(context, "Please set a Parent PIN before switching to Child mode", Toast.LENGTH_LONG).show()
+                                showSwitchDialog.value = false
+                                navController.navigate("change_pin_no_current")
+                            }
+
+                            !hasQASet -> {
+                                Toast.makeText(context, "Please set Recovery Q/A before switching to Child mode", Toast.LENGTH_LONG).show()
+                                showSwitchDialog.value = false
+                                navController.navigate("set_qa")
+                            }
+
+                            else -> {
+                                viewModel.setActiveChild(profile.id)
+                                viewModel.setAccountMode("Child")
+                                isUnlocked.value = false
+                                showSwitchDialog.value = false
+                            }
                         }
-                        showSwitchDialog.value = false
                     }
                 },
                 onDismiss = { showSwitchDialog.value = false }
             )
         }
-
-        if (showPinDialog.value) {
-            AlertDialog(
-                onDismissRequest = {
-                    showPinDialog.value = false
-                    enteredPin = ""
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        scope.launch {
-                            val stored = viewModel.pinCode.first()
-                            if (enteredPin == stored) {
-                                isUnlocked.value = true
-                                showPinDialog.value = false
-                                enteredPin = ""
-                                pendingTabRoute.value?.let {
-                                    navController.navigate(it) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            } else {
-                                Toast.makeText(context, "Incorrect PIN", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }) {
-                        Text("Unlock")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        showPinDialog.value = false
-                        enteredPin = ""
-                    }) {
-                        Text("Cancel")
-                    }
-                },
-                title = { Text("Parent PIN Required") },
-                text = {
-                    OutlinedTextField(
-                        value = enteredPin,
-                        onValueChange = { enteredPin = it },
-                        label = { Text("Enter Parent PIN") },
-                        singleLine = true
-                    )
-                }
-            )
-        }
     }
 }
+

@@ -73,7 +73,7 @@ fun MainScreen() {
             }
             composable("limits") {
                 selectedTab = 1
-                AppLimitsScreen(viewModel = viewModel(),navController)
+                AppLimitsScreen(viewModel = viewModel())
             }
             composable("set_limit/{packageName}/{appName}") { backStackEntry ->
                 val packageName = backStackEntry.arguments?.getString("packageName") ?: ""
