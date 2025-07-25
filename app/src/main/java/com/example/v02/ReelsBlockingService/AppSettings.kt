@@ -21,6 +21,7 @@ data class AppSettings(
     val snapchat: SnapchatApp = SnapchatApp(),
 
     val parentAppTimeLimits: Map<String, Int> = emptyMap() // ✅ ADDED
+    val blockedCategories: Map<String, Boolean> = emptyMap()
 )
 
 @Serializable
@@ -35,7 +36,8 @@ data class ChildProfile(
     val snapchat: SnapchatApp = SnapchatApp(),
     val appTimeLimits: Map<String, Int> = emptyMap(),
     val bedtimeStart: String = "",
-    val bedtimeEnd: String = ""
+    val bedtimeEnd: String = "",
+    val blockedCategories: Map<String, Boolean> = emptyMap()
 )
 
 @Serializable
@@ -78,4 +80,3 @@ data class SnapchatApp(
     val blockedStart: Int = 0,
     val blockedEnd: Int = 1439
 )
-

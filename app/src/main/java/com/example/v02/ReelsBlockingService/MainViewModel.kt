@@ -174,6 +174,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun getBlockedCategories(): Flow<Map<String, Boolean>> =
+        dataStoreManager.getBlockedCategories()
+
+    fun setCategoryBlocked(category: String, blocked: Boolean) =
+        viewModelScope.launch {
+            dataStoreManager.setCategoryBlocked(category, blocked)
+        }
+
+
 
     fun setAppTimeLimit(packageName: String, minutes: Int) = viewModelScope.launch {
         dataStoreManager.setAppTimeLimit(packageName, minutes)

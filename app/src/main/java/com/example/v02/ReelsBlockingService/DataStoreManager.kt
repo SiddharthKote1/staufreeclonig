@@ -28,6 +28,32 @@ class DataStoreManager(private val context: Context) {
         return appSettings.value
     }
 
+    suspend fun setCategoryBlocked(category: String, blocked: Boolean) {
+        if (appSettings.value.accountMode == "Parent") {
+            val settings = appSettings.value
+            val updated = settings.blockedCategories.toMutableMap().apply {
+                this[category] = blocked
+            }
+            saveSettings(settings.copy(blockedCategories = updated))
+        } else {
+            updateActiveChild {
+                val updated = it.blockedCategories.toMutableMap().apply {
+                    this[category] = blocked
+                }
+                it.copy(blockedCategories = updated)
+            }
+        }
+    }
+
+    fun getBlockedCategories(): Flow<Map<String, Boolean>> {
+        return appSettings.map { settings ->
+            if (settings.accountMode == "Parent") settings.blockedCategories
+            else settings.childProfiles.find { it.id == settings.activeChildId }?.blockedCategories
+                ?: emptyMap()
+        }
+    }
+
+
     val activeChildId: StateFlow<String> = appSettings.map { it.activeChildId }
         .stateIn(kotlinx.coroutines.GlobalScope, SharingStarted.Eagerly, "")
 
@@ -175,4 +201,3 @@ class DataStoreManager(private val context: Context) {
         }
     }
 }
-
