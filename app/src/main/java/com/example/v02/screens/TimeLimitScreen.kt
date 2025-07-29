@@ -11,16 +11,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 
 data class AppTimeLimit(
     val appName: String,
     val packageName: String,
-    val currentLimit: Int, // in minutes
+    val currentLimit: Int,
     val onLimitChange: (Int) -> Unit
 )
 
 @Composable
-fun TimeLimitsScreen() {
+fun TimeLimitsScreen(navController: NavController) {
     var appTimeLimits by remember {
         mutableStateOf(
             listOf(

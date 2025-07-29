@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.v02.ReelsBlockingService.MainViewModel
+import com.example.v02.screens.ScaffoldScreen
 import com.example.v02.timelimit.NumberPicker
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +33,7 @@ fun SetLimitScreen(
     packageName: String,
     appName: String,
     navController: NavController,
-    mainViewModel: MainViewModel = viewModel()
+    viewModel: MainViewModel
 ) {
     val context = LocalContext.current
     val decodedPackageName = Uri.decode(packageName)
@@ -41,7 +42,7 @@ fun SetLimitScreen(
     var appIcon by remember { mutableStateOf<Drawable?>(null) }
     var selectedMinutes by remember { mutableIntStateOf(30) }
 
-    val timeLimits by mainViewModel.getAppTimeLimits().collectAsState(initial = emptyMap())
+    val timeLimits by viewModel.getAppTimeLimits().collectAsState(initial = emptyMap())
     val currentLimit = timeLimits[decodedPackageName] ?: 0
 
     LaunchedEffect(decodedPackageName) {
@@ -57,7 +58,7 @@ fun SetLimitScreen(
                 withContext(Dispatchers.Main) {
                     appIcon = icon
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Ignore missing icons
             }
         }
@@ -177,7 +178,7 @@ fun SetLimitScreen(
             ) {
                 Button(
                     onClick = {
-                        mainViewModel.setAppTimeLimit(decodedPackageName, selectedMinutes)
+                        viewModel.setAppTimeLimit(decodedPackageName, selectedMinutes)
                         navController.popBackStack()
                     },
                     modifier = Modifier
@@ -193,7 +194,7 @@ fun SetLimitScreen(
                 if (currentLimit > 0) {
                     OutlinedButton(
                         onClick = {
-                            mainViewModel.setAppTimeLimit(decodedPackageName, 0)
+                            viewModel.setAppTimeLimit(decodedPackageName, 0)
                             navController.popBackStack()
                         },
                         modifier = Modifier
@@ -210,3 +211,4 @@ fun SetLimitScreen(
         }
     }
 }
+

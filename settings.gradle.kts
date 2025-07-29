@@ -3,11 +3,13 @@ pluginManagement {
         google()
         gradlePluginPortal()
         mavenCentral()
-        // ✅ JetBrains Compose repository (required)
+        // ✅ JetBrains Compose
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+        // ✅ JitPack for GitHub libraries
+        maven("https://jitpack.io")
     }
     plugins {
-        id("com.android.application") version "8.1.1" // ← check your correct version here
+        id("com.android.application") version "8.1.1"
         id("org.jetbrains.kotlin.android") version "1.9.10"
         id("org.jetbrains.compose") version "1.5.10"
     }
@@ -18,8 +20,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // ✅ Required for Compose libraries
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+        // ✅ Add here too
+        maven("https://jitpack.io")
     }
 }
 

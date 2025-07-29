@@ -1,95 +1,92 @@
 package com.example.v02
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Apps
-import androidx.compose.material.icons.filled.Settings
+import BlockSelectionScreen
+import android.net.Uri
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.v02.ReelsBlockingService.MainViewModel
-import com.example.v02.timelimit.Screens.AppLimitsScreen
-import com.example.v02.timelimit.Screens.AppUsageScreen
-import com.example.v02.timelimit.Screens.SetLimitScreen
+import com.example.v02.screens.BlockPermanentScreen
+import com.example.v02.timelimit.Screens.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
-    var selectedTab by remember { mutableIntStateOf(0) }
-
-
-    val tabs = listOf(
-        TabItem("Apps", Icons.Default.Apps),
-        TabItem("Limits", Icons.Default.Settings)
-    )
-
     val mainViewModel: MainViewModel = viewModel()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
-    Scaffold(
-        topBar = {
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.height(48.dp) // Optional: reduce height
-            ) {
-                tabs.forEachIndexed { index, tab ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = {
-                            selectedTab = index
-                            navController.navigate(
-                                when (index) {
-                                    0 -> "apps"
-                                    1 -> "limits"
-                                    else -> "apps"
-                                }
-                            ) {
-                                popUpTo("apps") { inclusive = false }
-                            }
-                        },
-                        text = { Text(tab.title) },
-                        icon = { Icon(tab.icon, contentDescription = tab.title) }
-                    )
+    NavHost(
+        navController = navController,
+        startDestination = "apps",
+        modifier = Modifier.fillMaxSize()
+    ) {
+        composable("apps") {
+            AppUsageScreen(navController = navController, viewModel = mainViewModel)
+        }
+        composable("limits") {
+            AppLimitsScreen(viewModel = mainViewModel)
+        }
+        composable("set_limit/{packageName}/{appName}") { backStackEntry ->
+            val packageName = backStackEntry.arguments?.getString("packageName") ?: ""
+            val appName = backStackEntry.arguments?.getString("appName") ?: ""
+            SetLimitScreen(
+                packageName = packageName,
+                appName = appName,
+                navController = navController,
+                viewModel = mainViewModel
+            )
+        }
+        composable("block_selection/{packageName}/{appName}") { backStackEntry ->
+            val packageName = Uri.decode(backStackEntry.arguments?.getString("packageName") ?: "")
+            val appName = Uri.decode(backStackEntry.arguments?.getString("appName") ?: "")
+            BlockSelectionScreen(
+                navController = navController,
+                packageName = packageName,
+                appName = appName
+            )
+        }
+        composable("block_permanent/{packageName}/{appName}") { backStackEntry ->
+            val packageName = Uri.decode(backStackEntry.arguments?.getString("packageName") ?: "")
+            val appName = Uri.decode(backStackEntry.arguments?.getString("appName") ?: "")
+            BlockPermanentScreen(
+                navController = navController,
+                packageName = packageName,
+                appName = appName,
+                viewModel = mainViewModel
+            )
+        }
+
+        // ✅ Category screen navigation
+        composable("category_apps/{category}") { backStackEntry ->
+            val category = backStackEntry.arguments?.getString("category") ?: ""
+            var apps by remember { mutableStateOf(emptyList<AppStatsItem>()) }
+
+            LaunchedEffect(category) {
+                coroutineScope.launch {
+                    val grouped = loadAppsGroupedByCategory(context)
+                    apps = grouped[category] ?: emptyList()
                 }
             }
-        }
-    ) { paddingValues ->
-        NavHost(
-            navController = navController,
-            startDestination = "apps",
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues) // ⬅ important to avoid being overlapped by tabs
-        ) {
-            composable("apps") {
-                selectedTab = 0
-                AppUsageScreen(navController = navController, viewModel = viewModel())
-            }
-            composable("limits") {
-                selectedTab = 1
-                AppLimitsScreen(viewModel = viewModel())
-            }
-            composable("set_limit/{packageName}/{appName}") { backStackEntry ->
-                val packageName = backStackEntry.arguments?.getString("packageName") ?: ""
-                val appName = backStackEntry.arguments?.getString("appName") ?: ""
-                SetLimitScreen(
-                    packageName = packageName,
-                    appName = appName,
-                    navController = navController
-                )
-            }
+
+            CategoryAppsScreen(navController = navController, category = category, apps = apps)
         }
     }
 }
 
 
+
 data class TabItem(
     val title: String,
-    val icon: ImageVector
+    val icon: ImageVector,
+    val route: String
 )

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -29,12 +31,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppUsageScreen(navController: NavController, viewModel: MainViewModel) {
     val context = LocalContext.current
     var appStats by remember { mutableStateOf<List<AppStatsItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     val limits by viewModel.getAppTimeLimits().collectAsState(initial = emptyMap())
+
+    // ✅ Tab Selection State
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Apps & Websites", "Categories")
 
     // Auto-refresh every 5 seconds
     LaunchedEffect(limits) {
@@ -43,66 +50,180 @@ fun AppUsageScreen(navController: NavController, viewModel: MainViewModel) {
                 appStats = stats
                 isLoading = false
             }
-            delay(5000) // Refresh every 5 seconds
+            delay(5000)
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                tonalElevation = 8.dp
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Loading app usage statistics...")
-                }
+                NavigationBarItem(
+                    selected = true,
+                    onClick = {},
+                    icon = { Icon(Icons.Default.Apps, contentDescription = "Apps") },
+                    label = { Text("Apps") }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { navController.navigate("limits") },
+                    icon = { Icon(Icons.Default.Settings, contentDescription = "Limits") },
+                    label = { Text("Limits") }
+                )
             }
-        } else if (appStats.isEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Timer,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
+            // ✅ Heading
+            Text(
+                text = "Select Items",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Text(
+                text = "Select apps, websites, or categories you want to limit usage of.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            // ✅ Tabs like Screenshot
+            TabRow(selectedTabIndex = selectedTab) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = { Text(title) }
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("No usage data available", fontSize = 16.sp)
-                    Text("Use your apps and check back later", fontSize = 14.sp)
                 }
             }
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(appStats) { appStat ->
-                    AppUsageItem(
-                        appStat = appStat,
-                        limitMinutes = limits[appStat.packageName] ?: 0,
-                        onClick = {
-                            if (appStat.packageName != context.packageName) {
-                                val encodedPackageName = Uri.encode(appStat.packageName)
-                                val encodedAppName = Uri.encode(appStat.appName)
-                                navController.navigate("set_limit/$encodedPackageName/$encodedAppName")
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ✅ Content based on selected tab
+            when (selectedTab) {
+                0 -> { // Apps & Websites Section
+                    if (isLoading) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    } else if (appStats.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No usage data available", fontSize = 16.sp)
+                        }
+                    } else {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(appStats) { appStat ->
+                                AppUsageItem(
+                                    appStat = appStat,
+                                    limitMinutes = limits[appStat.packageName] ?: 0,
+                                    onClick = {
+                                        if (appStat.packageName != context.packageName) {
+                                            val encodedPackageName =
+                                                Uri.encode(appStat.packageName)
+                                            val encodedAppName = Uri.encode(appStat.appName)
+                                            navController.navigate("block_selection/$encodedPackageName/$encodedAppName")
+                                        }
+                                    }
+                                )
                             }
                         }
-                    )
+                    }
+                }
+
+                1 -> { // Categories Section
+                    // ✅ Inside when(selectedTab == 1)
+                    val blockedCategories by viewModel.blockedCategories.collectAsState()
+
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val categories = listOf(
+                            "Social Networking",
+                            "Utility",
+                            "Game",
+                            "Education/Business",
+                            "Entertainment",
+                            "Family",
+                            "Health & Fitness"
+                        )
+                        items(categories) { category ->
+                            val isBlocked = blockedCategories.contains(category)
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.setCategoryBlocked(category, !isBlocked)
+                                    },
+                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                                colors = if (isBlocked) {
+                                    CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                                } else {
+                                    CardDefaults.cardColors()
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Settings, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(
+                                            text = category,
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                        if (isBlocked) {
+                                            Text(
+                                                text = "Blocked",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        } else {
+                                            Text(
+                                                text = "Tap to block",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                    Switch(
+                                        checked = isBlocked,
+                                        onCheckedChange = {
+                                            viewModel.setCategoryBlocked(
+                                                category,
+                                                it
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-@Composable
+
+                    @Composable
 fun AppUsageItem(
     appStat: AppStatsItem,
     limitMinutes: Int,
@@ -214,8 +335,10 @@ private suspend fun loadAppUsageStats(
 ) {
     withContext(Dispatchers.IO) {
         try {
-            val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-            val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+            val usageStatsManager =
+                context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+            val launcherApps =
+                context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
             val packageManager = context.packageManager
 
             val endTime = System.currentTimeMillis()

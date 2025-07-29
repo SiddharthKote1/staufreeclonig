@@ -27,17 +27,24 @@ import com.google.accompanist.drawablepainter.rememberDrawablePainter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
 @Composable
 fun AppLimitsScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
     val appTimeLimits by viewModel.getAppTimeLimits().collectAsState(initial = emptyMap())
+    val permanentlyBlockedApps by viewModel.permanentlyBlockedApps.collectAsState(initial = emptySet())
+    val blockedCategories by viewModel.blockedCategories.collectAsState(initial = emptySet())
 
     var limitedApps by remember { mutableStateOf<List<LimitedAppItem>>(emptyList()) }
+    var blockedApps by remember { mutableStateOf<List<BlockedAppItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    LaunchedEffect(appTimeLimits) {
+    LaunchedEffect(appTimeLimits, permanentlyBlockedApps) {
+        isLoading = true
         limitedApps = loadLimitedAppsFromLimits(context, appTimeLimits)
+        blockedApps = loadBlockedApps(context, permanentlyBlockedApps)
         isLoading = false
     }
 
@@ -47,68 +54,119 @@ fun AppLimitsScreen(viewModel: MainViewModel) {
             .padding(16.dp)
     ) {
         Text(
-            text = "App Time Limits",
+            text = "App Restrictions",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Loading app limits...")
                 }
             }
-        } else if (limitedApps.isEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Timer,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "No app limits set",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Go to Apps tab to set limits",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+
+            limitedApps.isEmpty() && blockedApps.isEmpty() && blockedCategories.isEmpty() -> {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No app or category restrictions set",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
-        } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(limitedApps) { limitedApp ->
-                    LimitedAppItem(
-                        limitedApp = limitedApp,
-                        onRemoveLimit = {
-                            scope.launch {
-                                viewModel.setAppTimeLimit(limitedApp.packageName, 0) // 👈 removes the limit
-                            }
+
+            else -> {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // ✅ Blocked Categories Section
+                    if (blockedCategories.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Blocked Categories",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
                         }
-                    )
+                        items(blockedCategories.toList()) { category ->
+                            BlockedCategoryItem(
+                                category = category,
+                                onUnblock = {
+                                    scope.launch {
+                                        viewModel.setCategoryBlocked(category, false)
+                                    }
+                                }
+                            )
+                        }
+
+                        item {
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
+
+                    // ✅ Time-Limited Apps Section
+                    if (limitedApps.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Time-Limited Apps",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                        items(limitedApps) { limitedApp ->
+                            LimitedAppItem(
+                                limitedApp = limitedApp,
+                                onRemoveLimit = {
+                                    scope.launch {
+                                        viewModel.setAppTimeLimit(limitedApp.packageName, 0)
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                    // ✅ Permanently Blocked Apps Section
+                    if (blockedApps.isNotEmpty()) {
+                        item {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Permanently Blocked Apps",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                        items(blockedApps) { blockedApp ->
+                            BlockedAppItem(
+                                blockedApp = blockedApp,
+                                onUnblock = {
+                                    scope.launch {
+                                        viewModel.setAppPermanentlyBlocked(blockedApp.packageName, false)
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -120,7 +178,6 @@ fun LimitedAppItem(
     limitedApp: LimitedAppItem,
     onRemoveLimit: () -> Unit
 ) {
-
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     Card(
@@ -141,9 +198,7 @@ fun LimitedAppItem(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = limitedApp.appName,
                     style = MaterialTheme.typography.titleMedium,
@@ -156,9 +211,8 @@ fun LimitedAppItem(
                 )
 
                 val context = LocalContext.current
-                val usageStatsManager = remember {
+                val usageStatsManager =
                     context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-                }
                 val usageStats = remember { AppLimits.getUsageStats(usageStatsManager) }
                 val currentUsage = usageStats.find { it.packageName == limitedApp.packageName }
 
@@ -173,9 +227,7 @@ fun LimitedAppItem(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Warning,
                                 contentDescription = null,
@@ -208,9 +260,7 @@ fun LimitedAppItem(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Remove Time Limit") },
-            text = {
-                Text("Are you sure you want to remove the time limit for ${limitedApp.appName}?")
-            },
+            text = { Text("Remove the time limit for ${limitedApp.appName}?") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -233,11 +283,134 @@ fun LimitedAppItem(
     }
 }
 
+@Composable
+fun BlockedAppItem(blockedApp: BlockedAppItem, onUnblock: () -> Unit) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = rememberDrawablePainter(blockedApp.icon),
+                contentDescription = blockedApp.appName,
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(blockedApp.appName, fontWeight = FontWeight.Medium)
+                Text(
+                    "Blocked Permanently",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp
+                )
+            }
+            OutlinedButton(onClick = { showDialog = true }) {
+                Text("Unblock")
+            }
+        }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Unblock App") },
+            text = { Text("Unblock ${blockedApp.appName}?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onUnblock()
+                        showDialog = false
+                    }
+                ) {
+                    Text("Unblock")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun BlockedCategoryItem(category: String, onUnblock: () -> Unit) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Timer,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(category, fontWeight = FontWeight.Medium)
+                Text(
+                    "Category Blocked",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp
+                )
+            }
+            OutlinedButton(onClick = { showDialog = true }) {
+                Text("Unblock")
+            }
+        }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Unblock Category") },
+            text = { Text("Do you want to unblock $category?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onUnblock()
+                        showDialog = false
+                    }
+                ) {
+                    Text("Unblock")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
 data class LimitedAppItem(
     val packageName: String,
     val appName: String,
     val icon: Drawable,
     val limitMinutes: Int
+)
+
+data class BlockedAppItem(
+    val packageName: String,
+    val appName: String,
+    val icon: Drawable
 )
 
 private suspend fun loadLimitedAppsFromLimits(
@@ -249,17 +422,35 @@ private suspend fun loadLimitedAppsFromLimits(
 
     limits.mapNotNull { (packageName, limitMinutes) ->
         try {
-            val applicationInfo = launcherApps.getApplicationInfo(
-                packageName, 0, Process.myUserHandle()
-            )
-            val appName = packageManager.getApplicationLabel(applicationInfo).toString()
-            val icon = packageManager.getApplicationIcon(applicationInfo)
-
+            val appInfo =
+                launcherApps.getApplicationInfo(packageName, 0, Process.myUserHandle())
             LimitedAppItem(
                 packageName = packageName,
-                appName = appName,
-                icon = icon,
+                appName = packageManager.getApplicationLabel(appInfo).toString(),
+                icon = packageManager.getApplicationIcon(appInfo),
                 limitMinutes = limitMinutes
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }.sortedBy { it.appName }
+}
+
+private suspend fun loadBlockedApps(
+    context: Context,
+    blockedPackages: Set<String>
+): List<BlockedAppItem> = withContext(Dispatchers.IO) {
+    val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+    val packageManager = context.packageManager
+
+    blockedPackages.mapNotNull { packageName ->
+        try {
+            val appInfo =
+                launcherApps.getApplicationInfo(packageName, 0, Process.myUserHandle())
+            BlockedAppItem(
+                packageName = packageName,
+                appName = packageManager.getApplicationLabel(appInfo).toString(),
+                icon = packageManager.getApplicationIcon(appInfo)
             )
         } catch (e: Exception) {
             null

@@ -10,7 +10,7 @@ data class AppSettings(
     val secretQuestion: String = "",
     val secretAnswer: String = "",
     val accountMode: String = "Parent", // "Parent" or "Child"
-    val activeChildId: String = "", // ID of currently active child profile
+    val activeChildId: String = "",
     val childProfiles: List<ChildProfile> = emptyList(),
 
     val instagram: App = App(),
@@ -20,7 +20,16 @@ data class AppSettings(
     val whatsapp: WhatsAppApp = WhatsAppApp(),
     val snapchat: SnapchatApp = SnapchatApp(),
 
-    val parentAppTimeLimits: Map<String, Int> = emptyMap() // ✅ ADDED
+    val parentAppTimeLimits: Map<String, Int> = emptyMap(),
+
+    val blockedKeywordLists: BlockedKeywordLists = BlockedKeywordLists(),
+    val customBlockedKeywords: List<String> = emptyList(),
+
+    // ✅ Parent permanent blocked apps
+    val blockedApps: Map<String, App> = emptyMap(),
+
+    // ✅ NEW: Parent Category Blocking (e.g., block all Games or Social apps)
+    val blockedCategories: Set<String> = emptySet()
 )
 
 @Serializable
@@ -35,7 +44,17 @@ data class ChildProfile(
     val snapchat: SnapchatApp = SnapchatApp(),
     val appTimeLimits: Map<String, Int> = emptyMap(),
     val bedtimeStart: String = "",
-    val bedtimeEnd: String = ""
+    val bedtimeEnd: String = "",
+
+    // ✅ Per-child permanent blocked apps
+    val blockedApps: Map<String, App> = emptyMap(),
+
+    // ✅ Per-child keyword blocking
+    val blockedKeywordLists: BlockedKeywordLists = BlockedKeywordLists(),
+    val customBlockedKeywords: List<String> = emptyList(),
+
+    // ✅ NEW: Per-child Category Blocking
+    val blockedCategories: Set<String> = emptySet()
 )
 
 @Serializable
@@ -79,3 +98,12 @@ data class SnapchatApp(
     val blockedEnd: Int = 1439
 )
 
+@Serializable
+data class BlockedKeywordLists(
+    val adult: Boolean = false,
+    val gambling: Boolean = false,
+    val violent: Boolean = false,
+    val hate: Boolean = false,
+    val drug: Boolean = false,
+    val scam: Boolean = false
+)

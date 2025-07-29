@@ -10,8 +10,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val dataStoreManager = DataStoreManager(application)
 
+    // ✅ ------------------- ACCOUNT INFO -------------------
     val childProfiles = dataStoreManager.childProfiles
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val activeChildId = dataStoreManager.activeChildId
     val accountMode = dataStoreManager.accountMode
@@ -30,7 +31,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val isParentMode: Flow<Boolean> = appSettings.map { it.accountMode == "Parent" }
 
-    // Account Setup
+    val blockedCategories: StateFlow<Set<String>> =
+        dataStoreManager.getBlockedCategories()
+
+    fun setCategoryBlocked(category: String, isBlocked: Boolean) = viewModelScope.launch {
+        dataStoreManager.setCategoryBlocked(category, isBlocked)
+    }
+
+    fun isCategoryBlocked(category: String): Boolean {
+        return dataStoreManager.isCategoryBlocked(category)
+    }
+
+
+    fun setAccountMode(mode: String) = viewModelScope.launch {
+        dataStoreManager.setAccountMode(mode)
+    }
+
     suspend fun addOrUpdateChild(profile: ChildProfile) =
         dataStoreManager.addOrUpdateChildProfile(profile)
 
@@ -39,9 +55,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun setActiveChild(id: String) =
         dataStoreManager.setActiveChildProfile(id)
-
-    suspend fun setAccountMode(mode: String) =
-        dataStoreManager.setAccountMode(mode)
 
     suspend fun setPinCode(pin: String) =
         dataStoreManager.setPinCode(pin)
@@ -54,7 +67,51 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return stored.isNotEmpty() && stored.equals(answer.trim(), ignoreCase = true)
     }
 
-    // Feature Block Config (Child-specific or Parent)
+    // ✅ ------------------- KEYWORD BLOCKING -------------------
+    // ✅ ------------------- KEYWORD BLOCKING -------------------
+    val blockedKeywordLists: StateFlow<BlockedKeywordLists> =
+        appSettings.map { settings ->
+            if (settings.accountMode == "Parent") {
+                settings.blockedKeywordLists
+            } else {
+                settings.childProfiles.find { it.id == settings.activeChildId }?.blockedKeywordLists
+                    ?: BlockedKeywordLists()
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BlockedKeywordLists())
+
+    val customBlockedKeywords: StateFlow<List<String>> =
+        appSettings.map { settings ->
+            if (settings.accountMode == "Parent") {
+                settings.customBlockedKeywords
+            } else {
+                settings.childProfiles.find { it.id == settings.activeChildId }?.customBlockedKeywords
+                    ?: emptyList()
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun setBlockedKeywordLists(lists: BlockedKeywordLists) = viewModelScope.launch {
+        dataStoreManager.setBlockedKeywordLists(lists)
+    }
+
+    fun setCustomBlockedKeywords(keywords: List<String>) = viewModelScope.launch {
+        dataStoreManager.setCustomBlockedKeywords(keywords)
+    }
+
+    // ✅ ------------------- PERMANENT BLOCKING -------------------
+    val permanentlyBlockedApps: StateFlow<Set<String>> =
+        dataStoreManager.getPermanentlyBlockedApps()
+
+    fun isAppPermanentlyBlocked(packageName: String): Boolean {
+        return dataStoreManager.isAppPermanentlyBlocked(packageName)
+    }
+
+    fun setAppPermanentlyBlocked(packageName: String, isBlocked: Boolean) {
+        viewModelScope.launch {
+            dataStoreManager.setAppPermanentlyBlocked(packageName, isBlocked)
+        }
+    }
+
+    // ✅ ------------------- CURRENT APP STATE HELPERS -------------------
     private val currentInstagram: Flow<App> = appSettings.map {
         if (it.accountMode == "Parent") it.instagram
         else it.childProfiles.find { c -> c.id == it.activeChildId }?.instagram ?: App()
@@ -85,7 +142,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         else it.childProfiles.find { c -> c.id == it.activeChildId }?.snapchat ?: SnapchatApp()
     }
 
-    // Instagram
+    // ✅ ------------------- INSTAGRAM BLOCKING -------------------
     val isReelsBlockingEnabled = currentInstagram.map { it.reelsBlocked }
     val isStoriesBlockingEnabled = currentInstagram.map { it.storiesBlocked }
     val isExploreBlockingEnabled = currentInstagram.map { it.exploreBlocked }
@@ -102,7 +159,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         dataStoreManager.setInstagramExploreBlocked(enabled)
     }
 
-    // Facebook
+    // ✅ ------------------- FACEBOOK BLOCKING -------------------
     val isFBReelsBlockingEnabled = currentFacebook.map { it.reelsBlocked }
     val isFBMarketplaceBlockingEnabled = currentFacebook.map { it.marketplaceBlocked }
     val isFBStoriesBlockingEnabled = currentFacebook.map { it.storiesBlocked }
@@ -119,7 +176,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         dataStoreManager.setFacebookStoriesBlocked(enabled)
     }
 
-    // YouTube
+    // ✅ ------------------- YOUTUBE BLOCKING -------------------
     val isYTShortsBlockingEnabled = currentYouTube.map { it.shortsBlocked }
     val isYTCommentsBlockingEnabled = currentYouTube.map { it.commentsBlocked }
     val isYTSearchBlockingEnabled = currentYouTube.map { it.searchBlocked }
@@ -136,21 +193,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         dataStoreManager.setYouTubeSearchBlocked(enabled)
     }
 
-    // Twitter
+    // ✅ ------------------- TWITTER BLOCKING -------------------
     val isTwitterExploreBlockingEnabled = currentTwitter.map { it.exploreBlocked }
 
     fun setTwitterExploreBlockingEnabled(enabled: Boolean) = viewModelScope.launch {
         dataStoreManager.setTwitterExploreBlocked(enabled)
     }
 
-    // WhatsApp
+    // ✅ ------------------- WHATSAPP BLOCKING -------------------
     val isWhatsAppStatusBlockingEnabled = currentWhatsApp.map { it.statusBlocked }
 
     fun setWhatsAppStatusBlocked(enabled: Boolean) = viewModelScope.launch {
         dataStoreManager.setWhatsAppStatusBlocked(enabled)
     }
 
-    // Snapchat
+    // ✅ ------------------- SNAPCHAT BLOCKING -------------------
     val isSnapchatSpotlightBlockingEnabled = currentSnapchat.map { it.spotlightBlocked }
     val isSnapchatStoriesBlockingEnabled = currentSnapchat.map { it.storiesBlocked }
 
@@ -162,7 +219,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         dataStoreManager.setSnapchatStoriesBlocked(enabled)
     }
 
-    // App Time Limits (used in AppLimitsScreen + SetLimitScreen)
+    // ✅ ------------------- APP TIME LIMITS -------------------
     fun getAppTimeLimits(): Flow<Map<String, Int>> {
         return appSettings.map { settings ->
             if (settings.accountMode == "Parent") {
@@ -173,7 +230,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-
 
     fun setAppTimeLimit(packageName: String, minutes: Int) = viewModelScope.launch {
         dataStoreManager.setAppTimeLimit(packageName, minutes)

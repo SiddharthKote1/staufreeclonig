@@ -129,7 +129,7 @@ fun MainAppScreen(viewModel: MainViewModel) {
                         listOf(
                             BottomNavItem.UsageStats,
                             BottomNavItem.InAppBlocking,
-                            BottomNavItem.TimeLimits
+                            BottomNavItem.BlockingControls
                         ).forEach { tab ->
                             NavigationBarItem(
                                 selected = curDest?.hierarchy?.any { it.route == tab.route } == true,
@@ -174,7 +174,9 @@ fun MainAppScreen(viewModel: MainViewModel) {
                 }
                 composable(BottomNavItem.UsageStats.route) { UsageStatsScreen() }
                 composable(BottomNavItem.InAppBlocking.route) { InAppBlockingScreen(viewModel) }
-                composable(BottomNavItem.TimeLimits.route) { MainScreen() }
+                composable(BottomNavItem.BlockingControls.route) {
+                    ScaffoldScreen(navController)
+                }
                 composable("change_pin") {
                     ChangePinScreen(viewModel, requireCurrent = true) { navController.popBackStack() }
                 }
@@ -189,6 +191,12 @@ fun MainAppScreen(viewModel: MainViewModel) {
                         navController.popBackStack()
                         Toast.makeText(context, "Recovery Question Set!", Toast.LENGTH_SHORT).show()
                     }
+                }
+                composable("Keyword_Block"){
+                    BlockKeywordsScreen(navController,viewModel)
+                }
+                composable("Main_Screen"){
+                    MainScreen()
                 }
             }
         }
